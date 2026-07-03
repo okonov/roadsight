@@ -45,7 +45,7 @@ export default function SignInPage() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="rounded border border-black/20 px-3 py-2"
+            className="rounded border border-foreground/20 bg-foreground/5 px-3 py-2 text-foreground"
           />
         </label>
         <label className="flex flex-col gap-1 text-sm">
@@ -55,14 +55,14 @@ export default function SignInPage() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="rounded border border-black/20 px-3 py-2"
+            className="rounded border border-foreground/20 bg-foreground/5 px-3 py-2 text-foreground"
           />
         </label>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <button
           type="submit"
           disabled={submitting}
-          className="rounded bg-black px-4 py-2 text-white disabled:opacity-50"
+          className="rounded bg-foreground px-4 py-2 text-background disabled:opacity-50"
         >
           {submitting ? "Signing in…" : "Sign in"}
         </button>

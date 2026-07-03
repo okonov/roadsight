@@ -11,7 +11,7 @@ export function ConfirmDeleteButton({ onConfirm }: ConfirmDeleteButtonProps) {
   const [deleting, setDeleting] = useState(false);
 
   if (deleting) {
-    return <span className="text-sm text-black/50">Deleting…</span>;
+    return <span className="text-sm text-foreground/50">Deleting…</span>;
   }
 
   if (armed) {

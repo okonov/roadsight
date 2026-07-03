@@ -7,7 +7,7 @@ export function NavBar() {
   const { data: session, status } = useSession();
 
   return (
-    <header className="flex items-center justify-between border-b border-black/10 px-6 py-4">
+    <header className="flex items-center justify-between border-b border-foreground/10 px-6 py-4">
       <Link href="/" className="font-semibold">
         RoadSight
       </Link>
@@ -17,7 +17,7 @@ export function NavBar() {
             <Link href="/routes" className="underline">
               My routes
             </Link>
-            <span className="text-black/60">{session.user?.email}</span>
+            <span className="text-foreground/60">{session.user?.email}</span>
             <button type="button" onClick={() => signOut({ callbackUrl: "/" })} className="underline">
               Sign out
             </button>

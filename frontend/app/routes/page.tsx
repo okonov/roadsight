@@ -14,7 +14,7 @@ export default async function RoutesPage() {
   return (
     <div className="mx-auto mt-12 max-w-2xl px-4">
       <h1 className="text-2xl font-semibold">Your routes</h1>
-      <p className="mt-1 text-sm text-black/60">Signed in as {session.user.email}</p>
+      <p className="mt-1 text-sm text-foreground/60">Signed in as {session.user.email}</p>
       <div className="mt-8">
         <RouteList initialRoutes={routes} />
       </div>

@@ -38,12 +38,12 @@ export function RouteForm({ initialName = "", submitLabel, onSubmit, onCancel }:
         placeholder="Route name"
         required
         maxLength={100}
-        className="rounded border border-black/20 px-3 py-2 text-sm"
+        className="rounded border border-foreground/20 bg-foreground/5 px-3 py-2 text-sm text-foreground placeholder:text-foreground/40"
       />
       <button
         type="submit"
         disabled={submitting}
-        className="rounded bg-black px-3 py-2 text-sm text-white disabled:opacity-50"
+        className="rounded bg-foreground px-3 py-2 text-sm text-background disabled:opacity-50"
       >
         {submitLabel}
       </button>

@@ -45,14 +45,14 @@ export function RouteList({ initialRoutes }: RouteListProps) {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h2 className="mb-2 text-sm font-medium text-black/60">Add a route</h2>
+        <h2 className="mb-2 text-sm font-medium text-foreground/60">Add a route</h2>
         <RouteForm submitLabel="Add" onSubmit={handleCreate} />
       </div>
 
       <ul className="flex flex-col gap-2">
-        {routes.length === 0 && <li className="text-sm text-black/50">No routes yet.</li>}
+        {routes.length === 0 && <li className="text-sm text-foreground/50">No routes yet.</li>}
         {routes.map((route) => (
-          <li key={route.id} className="flex items-center justify-between gap-4 rounded border border-black/10 px-3 py-2">
+          <li key={route.id} className="flex items-center justify-between gap-4 rounded border border-foreground/10 px-3 py-2">
             {editingId === route.id ? (
               <RouteForm
                 initialName={route.name}
