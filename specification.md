@@ -13,11 +13,26 @@ Application uses Azure as cloud provider.
 - service hosting: Azure Apps (TBD)
 - route planning: Azure Maps
 - AI to translate plain text origin/destination to coordinates and to analyze webcam images: Azure Foundry  
+- DB: Azure Database for PostgreSQL in production, PostgreSQL in Docker for local development
 
-### Lanuages ###
-- Front end: next.js. 
-- Backend, separate auxilary services: .net/c#
+### Lanuages and frameworks ###
+- web: next.js, TypeScript 
+- backend: separate auxilary services: .net/c#
 
 ### Repository ##
 GitHub
 
+### Deployment ###
+Docker
+
+## User Stories ##
+### Add route 
+- user provides route description in general language, e.g. 'Lougheed Mall to Squamish waterfall'
+- user checks the origin/destination of the route are properly resolved, confirms the route  
+
+Underlying processing:
+- user types general language route description on web page
+- web application creates new record for the route in DB and saves the description
+- web application sends the general description to Azure Foundry to resolve formal origin and destination with coordinates latitude/longitude
+- web page adds origin/destination to the route for user to confirm/save
+- web page sends route coordinates to Azure Maps to get route polyline and saves most recommended to the root record in DB (DB type to be defined: relational DB, e.g. Postgres seems OK for everything,  though persisting route polyline should be confirmed)
