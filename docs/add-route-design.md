@@ -14,7 +14,7 @@ The work is split into three phases:
 
 | Phase | Content | External dependencies |
 |---|---|---|
-| **1** | Full end-to-end flow with **mock** resolver and planner, Postgres in Docker, extended data model, new API endpoints, multi-step UI | Docker only |
+| **1** | Full end-to-end flow with **mock** resolver and planner, Postgres persistence, extended data model, new API endpoints, multi-step UI | A Postgres: Docker locally **or** the existing Azure flexible server (see §8) — neither blocks starting, thanks to the in-memory fallback |
 | **2** | Real NL resolution via **Azure Foundry** — one-line swap | Azure Foundry deployment |
 | **3** | Real route planning via **Azure Maps** — one-line swap | Azure Maps account |
 
@@ -390,6 +390,22 @@ const impl = process.env.DATABASE_URL
 This is the one deliberate deviation from the pure comment-swap: it lets `npm run dev` work without Docker running. The existing swap comment is updated rather than adding a second mechanism.
 
 - **Env** (`web/.env.local.example`): add `DATABASE_URL=postgres://roadsight:roadsight@localhost:5432/roadsight`.
+
+### Alternative: Azure Database for PostgreSQL (no Docker)
+
+Docker is a local convenience, not a code dependency — `PostgresRouteRepository` works against any Postgres reachable via `DATABASE_URL`, and with no `DATABASE_URL` set the app falls back to the in-memory repository. Since an **Azure Database for PostgreSQL flexible server is already provisioned** for this project, Phase 1 can start before WSL/Docker is installed:
+
+- Create a **separate dev database** on the flexible server (e.g. `roadsight_dev`) rather than developing against the future production database.
+- Run `db/init/001_routes.sql` **manually** (via `psql`, the Azure portal query editor, or Azure Data Studio) — there is no `docker-entrypoint-initdb.d` outside Docker.
+- Add a **firewall rule** on the flexible server for the local development IP.
+- Azure enforces TLS: the connection string needs `sslmode=require`, and the `pg` Pool may need `ssl: true`:
+
+  ```
+  DATABASE_URL=postgres://<user>:<password>@<server>.postgres.database.azure.com:5432/roadsight_dev?sslmode=require
+  ```
+
+Suggested development sequence: build Phase 1 against the in-memory fallback (no `DATABASE_URL`), then point `DATABASE_URL` at the Azure dev database to validate `PostgresRouteRepository` against a real server. The docker-compose path remains documented above for offline/free/resettable local development (`docker compose down -v`) and can be adopted later — WSL/Docker installation is a non-blocking side task, not a Phase 1 prerequisite.
+
 - **Known impedance mismatch**: users live in memory with `randomUUID()` ids ([`web/lib/users/user-store.ts`](../web/lib/users/user-store.ts)), so a server restart + re-register yields a new `userId` and orphans persisted routes. Phase 1 mitigation (one line): derive the dev user id deterministically from the normalized email (e.g. use the email itself as id). The user store is already marked disposable pending Entra ID, so this is safe.
 
 ## 9. Phasing & implementation checklist
@@ -401,7 +417,8 @@ This is the one deliberate deviation from the pure comment-swap: it lets `npm ru
 - [ ] Extend `Route` and add `GeoPoint` / `ResolvedPlace` / `RoutePolyline` / `RouteStatus` in `web/lib/routes/types.ts`
 - [ ] Widen `RouteRepository` (`get`, `NewRoute`, `RoutePatch`) in `web/lib/routes/route-repository.ts`
 - [ ] Update `InMemoryRouteRepository` to the new interface
-- [ ] Add `db/init/001_routes.sql` and `docker-compose.yml`
+- [ ] Add `db/init/001_routes.sql`
+- [ ] Add `docker-compose.yml` *(deferrable — not needed when using the Azure flexible server, see §8; requires WSL/Docker install)*
 - [ ] Add `pg` dependency; create `web/lib/db.ts` (Pool singleton)
 - [ ] Implement `web/lib/routes/postgres-route-repository.ts`; env-gate the swap in `repository.ts`
 - [ ] Create `web/lib/route-resolution/` (interface, `MockRouteResolver`, singleton)
