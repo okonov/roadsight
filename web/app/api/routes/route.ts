@@ -3,7 +3,7 @@ import { z } from "zod";
 import { auth } from "@/auth";
 import { routeRepository } from "@/lib/routes/repository";
 
-const routeNameSchema = z.object({ name: z.string().trim().min(1).max(100) });
+const createRouteSchema = z.object({ description: z.string().trim().min(1).max(200) });
 
 export async function GET() {
   const session = await auth();
@@ -21,11 +21,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const parsed = routeNameSchema.safeParse(await req.json());
+  const parsed = createRouteSchema.safeParse(await req.json());
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const route = await routeRepository.create(session.user.id, parsed.data.name);
+  const { description } = parsed.data;
+  const route = await routeRepository.create(session.user.id, {
+    name: description.slice(0, 100), // auto-derived; user renames later via PATCH
+    description,
+  });
   return NextResponse.json(route, { status: 201 });
 }

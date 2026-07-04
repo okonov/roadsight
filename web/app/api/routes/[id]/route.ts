@@ -2,8 +2,16 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { auth } from "@/auth";
 import { routeRepository } from "@/lib/routes/repository";
+import { RoutePatch } from "@/lib/routes/route-repository";
 
-const routeNameSchema = z.object({ name: z.string().trim().min(1).max(100) });
+const patchRouteSchema = z
+  .object({
+    name: z.string().trim().min(1).max(100).optional(),
+    description: z.string().trim().min(1).max(200).optional(),
+  })
+  .refine((data) => data.name !== undefined || data.description !== undefined, {
+    message: "At least one of name or description is required",
+  });
 
 type RouteParams = { params: Promise<{ id: string }> };
 
@@ -13,13 +21,34 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const parsed = routeNameSchema.safeParse(await req.json());
+  const parsed = patchRouteSchema.safeParse(await req.json());
   if (!parsed.success) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
   const { id } = await params;
-  const updated = await routeRepository.update(session.user.id, id, parsed.data.name);
+  const current = await routeRepository.get(session.user.id, id);
+  if (!current) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  const patch: RoutePatch = {};
+  if (parsed.data.name !== undefined) patch.name = parsed.data.name;
+  if (
+    parsed.data.description !== undefined &&
+    parsed.data.description !== current.description
+  ) {
+    // Derived data must not survive a description change: reset to draft.
+    patch.description = parsed.data.description;
+    patch.status = "draft";
+    patch.origin = null;
+    patch.destination = null;
+    patch.polyline = null;
+    patch.distanceMeters = null;
+    patch.durationSeconds = null;
+  }
+
+  const updated = await routeRepository.update(session.user.id, id, patch);
   if (!updated) {
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }

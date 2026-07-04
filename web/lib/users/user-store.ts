@@ -1,4 +1,3 @@
-import { randomUUID } from "crypto";
 import { User } from "./types";
 
 // Mock auth only — plaintext passwords in an in-memory map are fine for this POC's
@@ -32,7 +31,9 @@ export function createUser(input: {
   if (users.has(email)) {
     throw new Error("User already exists");
   }
-  const user: User = { id: randomUUID(), email, password: input.password, name: input.name };
+  // Deterministic id: routes persist in Postgres but users don't (until Entra ID), so a
+  // restart + re-register must yield the same userId or persisted routes get orphaned.
+  const user: User = { id: email, email, password: input.password, name: input.name };
   users.set(email, user);
   return user;
 }
