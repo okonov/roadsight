@@ -1,0 +1,1 @@
+az postgres flexible-server db create --server-name roadsightpostgres --resource-group roadsight --database-name roadsight_dev --charset utf8 --collation en_US.utf8
