@@ -1,0 +1,141 @@
+# @baseUrl = https://roadsight-foundry.services.ai.azure.com
+@model = gpt-oss-120b
+# @model = gpt-4o-mini
+@apiKey = AuZIsC...GAC8vTInXJ3w3AAAAACOGsjLe
+
+# System prompt shared by all requests below: extract origin/destination
+# from a casual, vague route description (see specification.md "Add route").
+@systemPrompt = You are a route-parsing assistant for a road-trip planning app limited to the province of British Columbia, with possible extension to Washington State. Given a casual, possibly vague natural-language route description, resolve the origin and destination to the most specific real-world place name you can infer (landmark, city, or neighborhood). Never merge origin and destination into one field, and never invent a destination that is not implied by the input.
+
+
+### Clear case: named landmark to named landmark
+@content = Lougheed Mall to Squamish waterfall
+
+# Vague case: no explicit "to", relies on implied travel direction
+# @content = heading out from downtown Vancouver up toward the mountains near Whistler
+
+# Ambiguous case: single location only, no destination implied
+# @content = just want to drive around Squamish for a bit
+
+
+# @name clearLandmarks
+POST https://roadsight-foundry.openai.azure.com/openai/v1/chat/completions
+Content-Type: application/json
+Authorization: Bearer {{apiKey}}
+
+{
+    "messages": [
+        { "role": "system", "content": "{{systemPrompt}}" },
+        { "role": "user", "content": "{{content}}" }
+    ],
+    "response_format": {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "route_endpoints",
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "origin": {
+                        "type": "string",
+                        "description": "Resolved name of the route's starting location"
+                    },
+                    "destination": {
+                        "type": "string",
+                        "description": "Resolved name of the route's ending location"
+                    },
+                    "confidence": {
+                        "type": "string",
+                        "enum": ["high", "medium", "low"],
+                        "description": "Confidence that origin/destination were correctly separated from the input"
+                    }
+                },
+                "required": ["origin", "destination", "confidence"],
+                "additionalProperties": false
+            },
+            "strict": true
+        }
+    },
+    "model": "{{model}}"
+}
+
+### Vague case: no explicit "to", relies on implied travel direction
+# @name vagueNoConnector
+POST {{baseUrl}}/models/chat/completions?api-version={{apiVersion}}
+Content-Type: application/json
+api-key: {{apiKey}}
+
+{
+    "messages": [
+        { "role": "system", "content": "{{systemPrompt}}" },
+        { "role": "user", "content": "heading out from downtown Vancouver up toward the mountains near Whistler" }
+    ],
+    "response_format": {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "route_endpoints",
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "origin": {
+                        "type": "string",
+                        "description": "Resolved name of the route's starting location"
+                    },
+                    "destination": {
+                        "type": "string",
+                        "description": "Resolved name of the route's ending location"
+                    },
+                    "confidence": {
+                        "type": "string",
+                        "enum": ["high", "medium", "low"],
+                        "description": "Confidence that origin/destination were correctly separated from the input"
+                    }
+                },
+                "required": ["origin", "destination", "confidence"],
+                "additionalProperties": false
+            },
+            "strict": true
+        }
+    },
+    "model": "{{model}}"
+}
+
+### Ambiguous case: single location only, no destination implied
+# @name ambiguousSingleLocation
+POST {{baseUrl}}/models/chat/completions?api-version={{apiVersion}}
+Content-Type: application/json
+api-key: {{apiKey}}
+
+{
+    "messages": [
+        { "role": "system", "content": "{{systemPrompt}}" },
+        { "role": "user", "content": "just want to drive around Squamish for a bit" }
+    ],
+    "response_format": {
+        "type": "json_schema",
+        "json_schema": {
+            "name": "route_endpoints",
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "origin": {
+                        "type": "string",
+                        "description": "Resolved name of the route's starting location"
+                    },
+                    "destination": {
+                        "type": "string",
+                        "description": "Resolved name of the route's ending location"
+                    },
+                    "confidence": {
+                        "type": "string",
+                        "enum": ["high", "medium", "low"],
+                        "description": "Confidence that origin/destination were correctly separated from the input"
+                    }
+                },
+                "required": ["origin", "destination", "confidence"],
+                "additionalProperties": false
+            },
+            "strict": true
+        }
+    },
+    "model": "{{model}}"
+}
