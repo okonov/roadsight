@@ -1,7 +1,7 @@
-# @baseUrl = https://roadsight-foundry.services.ai.azure.com
+@baseUrl = https://roadsight-foundry.services.ai.azure.com
 @model = gpt-oss-120b
 # @model = gpt-4o-mini
-@apiKey = AuZIsC...GAC8vTInXJ3w3AAAAACOGsjLe
+@apiKey = {{$dotenv AZURE_FOUNDRY_API_KEY}}
 
 # System prompt shared by all requests below: extract origin/destination
 # from a casual, vague route description (see specification.md "Add route").
@@ -19,7 +19,7 @@
 
 
 # @name clearLandmarks
-POST https://roadsight-foundry.openai.azure.com/openai/v1/chat/completions
+POST {{baseUrl}}/openai/v1/chat/completions
 Content-Type: application/json
 Authorization: Bearer {{apiKey}}
 
@@ -27,88 +27,6 @@ Authorization: Bearer {{apiKey}}
     "messages": [
         { "role": "system", "content": "{{systemPrompt}}" },
         { "role": "user", "content": "{{content}}" }
-    ],
-    "response_format": {
-        "type": "json_schema",
-        "json_schema": {
-            "name": "route_endpoints",
-            "schema": {
-                "type": "object",
-                "properties": {
-                    "origin": {
-                        "type": "string",
-                        "description": "Resolved name of the route's starting location"
-                    },
-                    "destination": {
-                        "type": "string",
-                        "description": "Resolved name of the route's ending location"
-                    },
-                    "confidence": {
-                        "type": "string",
-                        "enum": ["high", "medium", "low"],
-                        "description": "Confidence that origin/destination were correctly separated from the input"
-                    }
-                },
-                "required": ["origin", "destination", "confidence"],
-                "additionalProperties": false
-            },
-            "strict": true
-        }
-    },
-    "model": "{{model}}"
-}
-
-### Vague case: no explicit "to", relies on implied travel direction
-# @name vagueNoConnector
-POST {{baseUrl}}/models/chat/completions?api-version={{apiVersion}}
-Content-Type: application/json
-api-key: {{apiKey}}
-
-{
-    "messages": [
-        { "role": "system", "content": "{{systemPrompt}}" },
-        { "role": "user", "content": "heading out from downtown Vancouver up toward the mountains near Whistler" }
-    ],
-    "response_format": {
-        "type": "json_schema",
-        "json_schema": {
-            "name": "route_endpoints",
-            "schema": {
-                "type": "object",
-                "properties": {
-                    "origin": {
-                        "type": "string",
-                        "description": "Resolved name of the route's starting location"
-                    },
-                    "destination": {
-                        "type": "string",
-                        "description": "Resolved name of the route's ending location"
-                    },
-                    "confidence": {
-                        "type": "string",
-                        "enum": ["high", "medium", "low"],
-                        "description": "Confidence that origin/destination were correctly separated from the input"
-                    }
-                },
-                "required": ["origin", "destination", "confidence"],
-                "additionalProperties": false
-            },
-            "strict": true
-        }
-    },
-    "model": "{{model}}"
-}
-
-### Ambiguous case: single location only, no destination implied
-# @name ambiguousSingleLocation
-POST {{baseUrl}}/models/chat/completions?api-version={{apiVersion}}
-Content-Type: application/json
-api-key: {{apiKey}}
-
-{
-    "messages": [
-        { "role": "system", "content": "{{systemPrompt}}" },
-        { "role": "user", "content": "just want to drive around Squamish for a bit" }
     ],
     "response_format": {
         "type": "json_schema",
