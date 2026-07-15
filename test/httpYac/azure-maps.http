@@ -1,0 +1,21 @@
+@mapsKey = {{$dotenv AZURE_MAPS_KEY}}
+
+### Redmond
+@name redmond
+GET https://atlas.microsoft.com/geocode
+  ?api-version=2026-01-01
+  &addressLine=1%20Microsoft%20Way
+  &locality=Redmond
+  &postalCode=98052
+  &countryRegion=US
+  &top=1
+  &subscription-key={{mapsKey}}
+
+### Burnaby
+@name burnaby
+GET https://atlas.microsoft.com/geocode
+  ?api-version=2026-01-01
+  &query=Burnaby
+  &countrySet=CA
+  &top=1
+  &subscription-key={{mapsKey}}
