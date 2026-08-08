@@ -3,7 +3,7 @@ import { z } from "zod";
 import { createUser, findUser } from "@/lib/users/user-store";
 
 const registerSchema = z.object({
-  email: z.string().trim().email(),
+  email: z.email().trim(),
   password: z.string().min(1).max(200),
   name: z.string().trim().max(100).optional(),
 });
