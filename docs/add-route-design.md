@@ -15,16 +15,19 @@ The work is split into three phases:
 | Phase | Content | External dependencies |
 |---|---|---|
 | **1** | Full end-to-end flow with **mock** resolver and planner, Postgres persistence, extended data model, new API endpoints, multi-step UI | A Postgres: Docker locally **or** the existing Azure flexible server (see §8) — neither blocks starting, thanks to the in-memory fallback |
-| **2** | Real NL resolution via **Azure Foundry** — one-line swap | Azure Foundry deployment |
-| **3** | Real route planning via **Azure Maps** — one-line swap | Azure Maps account |
+| **2** | Real NL parsing via **Azure Foundry** — description → origin/destination *labels* | Azure Foundry deployment |
+| **3a** | Real geocoding via **Azure Maps** — labels → coordinates, folded into the resolve step | Azure Maps account |
+| **3b** | Real route planning via **Azure Maps** — coordinates → polyline, one-line swap | Azure Maps account |
 
 Phase 1 delivers the complete user story behaviour (with plausible mock data), so UI, API, and persistence are finished and demoable before any Azure account exists. Phases 2 and 3 change no UI, API, or DB code — that is the point of the service interfaces introduced here.
+
+Phase 2 turned out to deliver only *half* of resolution: an LLM can name a place but cannot produce trustworthy coordinates, so the Foundry step emits labels and Phase 3a geocodes them. See §5.1 for why that split exists and §5.2 for why geocoding belongs in the resolve step rather than the confirm step.
 
 ## 2. Architecture
 
 The codebase already uses an **interface + swap-point singleton** pattern: [`web/lib/routes/repository.ts`](../web/lib/routes/repository.ts) exports a `routeRepository` singleton (stashed on `globalThis` to survive Fast Refresh) with a comment marking where the in-memory implementation will later be replaced. The same pattern is used in [`web/auth.ts`](../web/auth.ts) for the future Microsoft Entra External ID swap.
 
-This design adds two more swap points of exactly the same shape — a route resolver (NL description → origin/destination) and a route planner (coordinates → polyline) — and upgrades the repository swap point to be gated by `DATABASE_URL`.
+This design adds two more swap points of exactly the same shape — a route resolver (NL description → origin/destination) and a route planner (coordinates → polyline) — and upgrades the repository swap point to be gated by `DATABASE_URL`. Phase 3a adds a third, a geocoder (place label → coordinates), which composes *behind* the resolver swap point rather than beside it.
 
 ```mermaid
 flowchart LR
@@ -45,9 +48,11 @@ flowchart LR
     PG["PostgresRouteRepository"]
     DB[("PostgreSQL 17<br/>Docker")]
     MR["MockRouteResolver<br/>(Phase 1)"]
-    AF["AzureFoundryRouteResolver<br/>(Phase 2)"]
+    GR["GeocodingRouteResolver<br/>(Phase 3a)"]
+    AF["AzureFoundryDescriptionParser<br/>(Phase 2) — labels only"]
+    GC["AzureMapsGeocoder<br/>(Phase 3a) — label → lat/lng"]
     MP["MockRoutePlanner<br/>(Phase 1)"]
-    AM["AzureMapsRoutePlanner<br/>(Phase 3)"]
+    AM["AzureMapsRoutePlanner<br/>(Phase 3b)"]
     AUTH["NextAuth Credentials<br/>→ Entra External ID (later)"]
 
     B --> P
@@ -61,15 +66,17 @@ flowchart LR
     R --> PG
     PG --> DB
     RES --> MR
-    RES -.-> AF
+    RES --> GR
+    GR --> AF
+    GR --> GC
     PL --> MP
     PL -.-> AM
 
     classDef future stroke-dasharray: 5 5,opacity:0.7
-    class AF,AM,AUTH future
+    class AM,AUTH future
 ```
 
-*Solid boxes are implemented in Phase 1; dashed boxes are future swaps. Each singleton picks its implementation in one file — no other file changes when a swap happens.*
+*Dashed boxes are still future swaps. Each singleton picks its implementation in one file — no other file changes when a swap happens. `GeocodingRouteResolver` is a composite: it satisfies the `RouteResolver` contract by chaining a parser and a geocoder, so the swap point above it is unaware that resolution became two calls.*
 
 ## 3. Route lifecycle
 
@@ -195,9 +202,9 @@ All methods stay `userId`-scoped (ownership enforced at the repository level, as
 
 ## 5. Service interfaces
 
-Two new modules mirroring the `lib/routes/` layout exactly: interface file + mock implementation + `globalThis`-stashed singleton with a swap comment.
+New modules mirroring the `lib/routes/` layout exactly: interface file + implementations + `globalThis`-stashed singleton with a swap comment.
 
-### Route resolution — `web/lib/route-resolution/`
+### 5.1 Route resolution — `web/lib/route-resolution/`
 
 ```ts
 // route-resolver.ts
@@ -222,13 +229,81 @@ Returning `null` for "cannot resolve" (rather than throwing) matches the reposit
 - If either side matches nothing → return `null`. No fake fallback coordinates — honest failures exercise the error UI.
 - Artificial 300–800 ms delay so the "Resolving…" state is visible in demos.
 
-**`resolver.ts`** — singleton, verbatim copy of the `repository.ts` pattern:
+#### Parsing and geocoding are separate jobs
+
+Phase 2 revealed that `RouteResolver` bundles two unrelated capabilities. An LLM is good at *"Lougheed Mall to Squamish waterfall"* → `("Lougheed Town Centre", "Shannon Falls Provincial Park")` and bad at coordinates — asking it for lat/lng invites plausible-looking hallucinations that no downstream check would catch. So the Foundry implementation targets a narrower interface:
 
 ```ts
-// Later: swap to `new AzureFoundryRouteResolver(...)` — no other file changes.
+// route-description-parser.ts
+export interface EndpointLabels {
+  origin: string;
+  destination: string;
+}
+
+export interface RouteDescriptionParser {
+  /** Returns null when the description cannot be split into two places. */
+  parse(description: string): Promise<EndpointLabels | null>;
+}
 ```
 
-### Route planning — `web/lib/routing/`
+`AzureFoundryDescriptionParser` implements this (strict `json_schema` response format, Zod-validated, `null` on `confidence: "low"`), and `GeocodingRouteResolver` composes a parser with a geocoder to satisfy the unchanged `RouteResolver` contract:
+
+```ts
+export class GeocodingRouteResolver implements RouteResolver {
+  constructor(parser: RouteDescriptionParser, geocoder: Geocoder) {}
+  // parse → geocode both labels in parallel → null if either side fails
+}
+```
+
+`MockRouteResolver` stays a direct `RouteResolver` — its dictionary already holds real coordinates, so it needs no geocoding and keeps offline development working.
+
+**`resolver.ts`** — singleton over the same `repository.ts` pattern, now composing rather than picking:
+
+```ts
+// Both keys are required for the real path: a parser without a geocoder can only
+// produce labels, and the review step is worthless without coordinates.
+const impl = foundryKey && mapsKey
+  ? new GeocodingRouteResolver(new AzureFoundryDescriptionParser(...), new AzureMapsGeocoder(mapsKey))
+  : new MockRouteResolver();
+```
+
+### 5.2 Geocoding — `web/lib/geocoding/`
+
+```ts
+// geocoder.ts
+import type { ResolvedPlace } from "@/lib/routes/types";
+
+export interface Geocoder {
+  /** Returns null when the query matches no place confidently enough to route to. */
+  geocode(query: string): Promise<ResolvedPlace | null>;
+}
+```
+
+#### Decision: geocode during **resolve**, not during **confirm**
+
+Azure Maps offers no "route from an address string" endpoint — [Post Route Directions](https://learn.microsoft.com/en-us/rest/api/maps/route/post-route-directions?view=rest-maps-2025-01-01) accepts a GeoJSON `FeatureCollection` of `Point` features and nothing else. Coordinates must therefore be obtained somewhere; the only question is when.
+
+| Option | Verdict |
+|---|---|
+| **Geocode inside resolve** ✅ | The review step shows the coordinates that will actually be routed. A place Azure Maps cannot find fails as **422 at resolve**, where the UI already offers "reword your description". Fills `origin_lat/lng` for the eventual map render. `RoutePlanner.plan(GeoPoint, GeoPoint)` is unchanged. |
+| Geocode inside confirm (planner) | The review card would show `0.0000, 0.0000` — the user confirms endpoints nobody verified. An unfindable place surfaces as a **502 at confirm**, which the §3 state machine treats as a retryable outage rather than a description problem, so the user is offered "Retry" for something retrying cannot fix. |
+
+The second row is not hypothetical: it is what the code does today, because Phase 2's placeholder returns `lat: 0, lng: 0`.
+
+#### `AzureMapsGeocoder` — call shape
+
+`GET https://atlas.microsoft.com/geocode?api-version=2026-01-01`, following [Best practices for Azure Maps Search](https://learn.microsoft.com/en-us/azure/azure-maps/how-to-use-best-practices-for-search):
+
+- **Freeform `query=`, not the structured parameters.** The parser emits a place name, not parsed address components. Search v1's `Get Search Fuzzy` — the old way to match landmarks — is [superseded by `Get Geocoding`](https://learn.microsoft.com/en-us/azure/azure-maps/migrate-search-v1-api), whose own reference example is `query=empire state building`. One endpoint covers addresses, localities, and landmarks; no fuzzy fallback tier is needed.
+- **Geobias with `coordinates` only — no `bbox`, no `countryRegion`.** `countryRegion`, `locality`, `addressLine`, `postalCode` and friends [must not be combined with `query`](https://learn.microsoft.com/en-us/rest/api/maps/search/get-geocoding?view=rest-maps-2026-01-01), and a country filter would break the WA extension regardless. A BC+WA bounding box looked like the natural substitute, but **measurement against the live service showed it makes landmark queries worse**: `Simon Fraser University` returns the correct `HigherEducationFacility` at `High` confidence with `coordinates` alone, and collapses to `Low`-confidence noise (`Fraser, CO`, `Fraser, AB`) the moment a `bbox` is added. `coordinates=-123.1,49.3` alone both ranks correctly (`Vancouver` → BC, not WA) and leaves Washington reachable. Out-of-area candidates are filtered by the confidence gate instead — `Stanley Park, United Kingdom` comes back `Low` and is dropped.
+- **Prefer the `Route` geocode point.** Each feature carries `geocodePoints[]` tagged with `usageTypes`; `"Route"` is a vehicle-accessible entrance, `"Display"` is the visual centre of the park or building. Fall back to `feature.geometry.coordinates`. In practice BC landmarks come back with a `Display` point only and the fallback carries them; street addresses are where the distinction actually appears, so the preference costs nothing and is correct when it fires. All Azure Maps coordinates are `[lon, lat]` — with an optional third altitude element, so a strict 2-tuple schema is wrong — and must be flipped into `GeoPoint`.
+- **Overwrite the label with `properties.address.formattedAddress`.** This is the honesty rule: when the service rolls up, the review card must say *"Squamish, BC"*, not the parser's optimistic *"Shannon Falls Provincial Park"*. Live behaviour makes the case: `"Squamish waterfall"` really does resolve to `Squamish, BC` (`PopulatedPlace`), and `"Lougheed Town Centre"` to the neighbouring `Lougheed Plaza`. Both are things the user can see and correct; neither would be visible if the query text were echoed back.
+- **Quality gate → `null` → 422.** Reject an empty `features` array (Get Geocoding "prioritizes correctness and may return no results" — a 200 with no match is the normal no-match signal, not an error) and `confidence: "Low"`. `top=1`.
+  - Gate on `confidence` **only**. `matchCodes` is documented as a quality signal but is absent from every landmark and place response observed — only plain street addresses carried it (`["Good"]`), so a rule keyed on `UpHierarchy` would be dead code. `type` is likewise unusable as a filter: the live service returns values well outside the documented enum (`ShoppingCenter`, `Park`, `Mountain`, `HigherEducationFacility`, `TouristStructure`), so an allowlist would reject good matches.
+  - Rejecting `Low` is recoverable, which is what makes it the right strictness: `"Metropolis at Metrotown"` is rejected, `"Metrotown"` resolves — exactly the reword loop the 422 path offers.
+- Two geocodes per resolve, issued with `Promise.all`. `geocode:batch` exists but bills per item and buys nothing at n=2.
+
+### 5.3 Route planning — `web/lib/routing/`
 
 ```ts
 // route-planner.ts
@@ -252,6 +327,26 @@ A single recommended plan, not alternatives — that is what the spec asks to pe
 - `distanceMeters` = haversine distance × 1.25 road factor; `durationSeconds` = distance at 60 km/h; ~300 ms delay.
 
 **`planner.ts`** — same singleton pattern with `// Later: swap to \`new AzureMapsRoutePlanner(...)\`` comment.
+
+#### `AzureMapsRoutePlanner` — call shape (Phase 3b)
+
+`POST https://atlas.microsoft.com/route/directions?api-version=2025-01-01`, body `application/geo+json`. The `GET /route/directions` of v1.0 is gone; the POST form is the supported replacement.
+
+```jsonc
+{ "type": "FeatureCollection",
+  "features": [
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [oLng, oLat] },
+      "properties": { "pointIndex": 0, "pointType": "waypoint" } },
+    { "type": "Feature", "geometry": { "type": "Point", "coordinates": [dLng, dLat] },
+      "properties": { "pointIndex": 1, "pointType": "waypoint" } }
+  ],
+  "travelMode": "driving", "optimizeRoute": "fastestWithTraffic",
+  "routeOutputOptions": ["routePath"], "maxRouteCount": 1 }
+```
+
+`routeOutputOptions: ["routePath"]` matters — the default is `itinerary`, which returns turn-by-turn guidance this story never displays.
+
+Response mapping: take the feature whose `properties.type === "RoutePath"`; `distanceInMeters` and `durationInSeconds` sit on that same `properties`. **Its geometry is a `MultiLineString`, not a `LineString`** — the segments are contiguous, so concatenate them (dropping duplicated joint points) into the single `RoutePolyline` LineString of §4. Flattening keeps the persisted JSONB shape and the §4 decision intact; widening `RoutePolyline` to a MultiLineString would ripple into the DB and the future map renderer for no gain at one leg.
 
 ## 6. API design
 
@@ -430,19 +525,30 @@ Suggested development sequence: build Phase 1 against the in-memory fallback (no
 - [ ] Add `DATABASE_URL` to `web/.env.local.example`
 - [ ] Drive-by: rename `web/package.json` `"name"` from `"frontend"` to `"web"`
 
-### Phase 2 — real Azure Foundry resolver
+### Phase 2 — real Azure Foundry parsing ✅
 
-- [ ] `AzureFoundryRouteResolver implements RouteResolver`: prompt returns strict JSON `{ origin: { label, lat, lng }, destination: { … } }`, Zod-validated; return `null` on low confidence / malformed output
-- [ ] Env: `AZURE_FOUNDRY_ENDPOINT`, `AZURE_FOUNDRY_API_KEY`, deployment name
-- [ ] One-line swap in `web/lib/route-resolution/resolver.ts`
+- [x] `AzureFoundryDescriptionParser implements RouteDescriptionParser`: strict `json_schema` response format returning `{ origin, destination, confidence }`, Zod-validated; `null` on low confidence / malformed output
+- [x] Env: `AZURE_FOUNDRY_ENDPOINT`, `AZURE_FOUNDRY_API_KEY`, `AZURE_FOUNDRY_DEPLOYMENT`
+- [x] Swap in `web/lib/route-resolution/resolver.ts`
 
-No UI, API, or DB changes.
+No UI, API, or DB changes. *(Originally scoped as returning coordinates too; narrowed to labels in Phase 3a — see §5.1.)*
 
-### Phase 3 — real Azure Maps planner
+### Phase 3a — real Azure Maps geocoding ✅
 
-- [ ] `AzureMapsRoutePlanner implements RoutePlanner`: Route Directions API; map the top-ranked route's leg points to the GeoJSON LineString
-- [ ] Env: `AZURE_MAPS_KEY`
-- [ ] One-line swap in `web/lib/routing/planner.ts`
+- [x] Add `web/lib/geocoding/geocoder.ts` (`Geocoder` interface) and `azure-maps-geocoder.ts` (§5.2 call shape: freeform `query`, `coordinates` bias, `Route` geocode point, `formattedAddress` label, Low-confidence/empty → `null`)
+- [x] Narrow the Foundry implementation to `RouteDescriptionParser`; drop the `lat: 0, lng: 0` placeholder
+- [x] Add `web/lib/route-resolution/geocoding-route-resolver.ts`
+- [x] Compose in `resolver.ts`, gated on `AZURE_FOUNDRY_API_KEY` **and** `AZURE_MAPS_KEY`
+- [x] Env: `AZURE_MAPS_KEY`
+- [x] Wrap `routeResolver.resolve()` in the resolve handler with try/catch → **502**, mirroring the confirm handler. Without it an Azure outage returns 500, which §6 never specified and the wizard does not handle
+- [x] Give the wizard a distinct 502 message on the resolve path (an outage is not a rewording problem) — the one small UI change this phase needed
+
+No API or DB changes.
+
+### Phase 3b — real Azure Maps planner
+
+- [ ] `AzureMapsRoutePlanner implements RoutePlanner`: Post Route Directions (§5.3); flatten the `RoutePath` MultiLineString into the GeoJSON LineString
+- [ ] One-line swap in `web/lib/routing/planner.ts` (reuses `AZURE_MAPS_KEY`)
 
 No UI, API, or DB changes.
 
@@ -458,7 +564,10 @@ No UI, API, or DB changes.
 1. **Polyline persistence** — *resolved by this document*: persist GeoJSON JSONB at confirm time (§4). Revisit toward PostGIS only if spatial queries appear. This closes the question flagged in specification.md.
 2. **Sync vs async resolution** — Phase 1 mocks are fast; real Foundry calls may take seconds. Decision: keep synchronous request/response (single-user POC). If latency exceeds ~10 s or serverless function timeouts bite, move to fire-and-poll with an added `resolving` status.
 3. **Azure cost/quota** — every resolve is an LLM call, every confirm a Maps call. Mocks keep development free; rate limiting is absent and acceptable at POC scale.
-4. **Ambiguity handling** — "Squamish waterfall" could match multiple places; the current design returns a single candidate pair. A multi-candidate `RouteResolver` v2 (returning a candidates array for a pick-list) is flagged now so Phase 2 can decide.
+4. **Ambiguity handling** — "Squamish waterfall" could match multiple places; the current design returns a single candidate pair. A multi-candidate `RouteResolver` v2 (returning a candidates array for a pick-list) is flagged now so Phase 2 can decide. Phase 3a keeps the single-pair shape and leans on the honest-label rule (§5.2) to make a wrong pick visible in review.
 5. **User identity durability** — routes persist, users don't (until Entra ID). Mitigated by deterministic dev user ids; fully fixed in the Entra phase.
 6. **Concurrency** — read-modify-write updates have no optimistic locking. Acceptable single-user; an `updated_at`-based check is the future fix.
 7. **`name` vs `description` divergence** — the auto-derived name never re-derives after description edits; once created it is user-owned. Intended behaviour.
+8. **Rollups are accepted, not rejected** — Phase 3a keeps a geocode that degraded to a coarser entity (`"Squamish waterfall"` → `Squamish, BC`) and shows the rolled-up label, rather than treating it as unresolvable. Rejecting would fail on legitimate rural BC landmarks that genuinely only resolve to the nearest settlement, and the honesty rule already puts the degradation in front of the user. Note this cannot be implemented as a `matchCodes: ["UpHierarchy"]` check anyway — see §5.2, the field is not returned for place results.
+9. **Geocoding is a second network hop inside resolve** — resolve is now one Foundry call plus two Azure Maps calls, worsening the latency risk already noted in item 2. Geocoding is cheap (~70–300 ms per call, measured), but the parser is not: `gpt-oss-120b` spent 4–15 s on descriptions it struggled with. Item 2's fire-and-poll trigger point is closer than it looked.
+10. **Parser reliability is now the weak link** — with geocoding real, end-to-end failures traced to the Phase 2 parser rather than Azure Maps. Measured over repeated calls: `"SFU to UBC"` fails 3/3 (acronyms → low confidence, 4–15 s); one run emitted a token-split artifact (`"Lou gheed Mall"`) that then geocoded up-hierarchy to `Burnaby, BC`; one run returned HTTP 400 `finish_reason: "content_filter"` after 4264 completion tokens. Candidate fixes, all Phase 2 territory: expand acronyms in the system prompt, cap reasoning effort / `max_tokens`, or move to a non-reasoning deployment. The 502 path (§6) covers the throw correctly; the silent nulls are the part worth fixing.

@@ -1,6 +1,5 @@
 import { z } from "zod";
-import { ResolvedPlace } from "@/lib/routes/types";
-import { ResolvedEndpoints, RouteResolver } from "./route-resolver";
+import { EndpointLabels, RouteDescriptionParser } from "./route-description-parser";
 
 const SYSTEM_PROMPT =
   "You are a route-parsing assistant for a road-trip planning app limited to the province of " +
@@ -43,20 +42,17 @@ const completionContentSchema = z.object({
   confidence: z.enum(["high", "medium", "low"]),
 });
 
-// TODO(Phase 3): geocode label -> real lat/lng via Azure Maps. Until then this
-// is a placeholder so the resolved endpoints are still displayable/persistable.
-function toResolvedPlace(label: string): ResolvedPlace {
-  return { label, lat: 0, lng: 0 };
-}
-
-export class AzureFoundryRouteResolver implements RouteResolver {
+// Labels only, deliberately: an LLM asked for coordinates produces plausible-looking
+// hallucinations that nothing downstream can catch. GeocodingRouteResolver pairs this
+// with a real geocoder to get lat/lng.
+export class AzureFoundryDescriptionParser implements RouteDescriptionParser {
   constructor(
     private readonly endpoint: string,
     private readonly apiKey: string,
     private readonly deploymentName: string,
   ) {}
 
-  async resolve(description: string): Promise<ResolvedEndpoints | null> {
+  async parse(description: string): Promise<EndpointLabels | null> {
     const res = await fetch(`${this.endpoint}/openai/v1/chat/completions`, {
       method: "POST",
       headers: {
@@ -91,9 +87,6 @@ export class AzureFoundryRouteResolver implements RouteResolver {
     const parsed = completionContentSchema.safeParse(parsedContent);
     if (!parsed.success || parsed.data.confidence === "low") return null;
 
-    return {
-      origin: toResolvedPlace(parsed.data.origin),
-      destination: toResolvedPlace(parsed.data.destination),
-    };
+    return { origin: parsed.data.origin, destination: parsed.data.destination };
   }
 }

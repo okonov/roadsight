@@ -59,6 +59,16 @@ export function AddRouteWizard({
         });
         return;
       }
+      if (res.status === 502) {
+        // Outage rather than a bad description; resubmitting the same text re-resolves.
+        setState({
+          step: "error",
+          route,
+          message: "Resolution service unavailable. Try again in a moment.",
+          retry: "reword",
+        });
+        return;
+      }
       if (!res.ok) throw new Error();
       const resolved: Route = await res.json();
       onRouteChanged(resolved);

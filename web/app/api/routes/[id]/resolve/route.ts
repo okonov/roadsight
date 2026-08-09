@@ -23,7 +23,16 @@ export async function POST(_req: NextRequest, { params }: RouteParams) {
     );
   }
 
-  const endpoints = await routeResolver.resolve(route.description);
+  let endpoints;
+  try {
+    endpoints = await routeResolver.resolve(route.description);
+  } catch {
+    // Upstream outage, not a bad description: route stays draft and the client can retry.
+    return NextResponse.json(
+      { error: "Route resolution service unavailable" },
+      { status: 502 },
+    );
+  }
   if (!endpoints) {
     return NextResponse.json(
       { error: "Could not identify origin and destination from the description" },
