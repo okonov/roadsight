@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_WEBAPP_NAME: roadsight-webapp-hwftfdfpctaugac2
+  AZURE_WEBAPP_NAME: roadsight-webapp
   NODE_VERSION: "22.x"
 
 jobs:
