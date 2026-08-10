@@ -5,8 +5,25 @@ import { Geocoder } from "./geocoder";
 const GEOCODE_URL = "https://atlas.microsoft.com/geocode";
 const API_VERSION = "2026-01-01";
 
-// Geobias toward the Lower Mainland, which is what disambiguates the many duplicated
-// place names in the Pacific Northwest ("Vancouver" -> BC, not WA). Format: lon,lat.
+// Downtown Vancouver. The API treats `coordinates` as the *user's location* for ranking
+// purposes, not as a description of the search area, so this is deliberately a populated
+// point rather than the centroid of the service area — a centroid (~-126.3,52.3, the
+// middle of the Coast Range) is measurably no better than sending no bias at all.
+//
+// It is a safety net for *unqualified* place names: unbiased, "Richmond" resolves to
+// Richmond, VA and "Surrey" to Surrey, UK. Cost is a mild confidence drop for far-northern
+// BC ("Fraser Lake" High -> Medium; same coordinates, still above the Low gate).
+//
+// Do not try to improve this by biasing the destination lookup with the resolved origin —
+// measured, that trades one failure for a worse one: a Prince George origin pulls
+// "Richmond" to Virginia and "Surrey" to the UK at *High* confidence, which sails through
+// the gate below. A confident match against a bad bias point beats a hesitant match
+// against a good one, so the constant is the safer default.
+//
+// The real lever is upstream: any label carrying its province ("Richmond, BC",
+// "Mackenzie, BC") resolves at High confidence to identical coordinates under every bias
+// point tested, including none. Keeping the parser's labels region-qualified matters far
+// more than tuning this constant.
 //
 // Deliberately no `bbox`: measured against the live service, adding a BC+WA bounding box
 // makes landmark queries *worse*, not better. "Simon Fraser University" returns the
