@@ -27,6 +27,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   session: { strategy: "jwt" },
   pages: { signIn: "/sign-in" },
+  trustHost: true,
   callbacks: {
     jwt({ token, user }) {
       if (user) token.id = user.id;
