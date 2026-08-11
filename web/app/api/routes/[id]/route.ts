@@ -46,6 +46,11 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
     patch.polyline = null;
     patch.distanceMeters = null;
     patch.durationSeconds = null;
+    // Keep the auto-derived title in sync too, unless the user has since
+    // renamed it explicitly (name no longer matches the auto-derived value).
+    if (parsed.data.name === undefined && current.name === current.description.slice(0, 100)) {
+      patch.name = parsed.data.description.slice(0, 100);
+    }
   }
 
   const updated = await routeRepository.update(session.user.id, id, patch);
