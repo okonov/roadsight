@@ -1,10 +1,12 @@
 import NextAuth from "next-auth";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 
-// Sign-in goes through the "roadsight" app registration in Microsoft Entra ID. The
-// registration is single-tenant ("My organization only"), so the issuer must name the
-// directory (tenant) ID — the default /common/ issuer would let any Microsoft account in
-// and then fail at the token exchange.
+// Sign-in goes through the "roadsight" app registration in Microsoft Entra External ID.
+// The tenant is a CIAM tenant, so the issuer must be the *.ciamlogin.com authority, not
+// login.microsoftonline.com: customer (local) accounts exist only at the CIAM endpoint and
+// get AADSTS500208 anywhere else. Use the tenant-GUID subdomain form specifically — the
+// friendly <name>.ciamlogin.com host serves a discovery document whose `issuer` is the GUID
+// form, and the OAuth client rejects that mismatch.
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
     MicrosoftEntraID({
@@ -12,12 +14,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET,
       issuer: process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER,
       // The provider defaults also ask for User.Read and spend a Microsoft Graph call per
-      // sign-in fetching an avatar we never render. The ID token alone has all we need.
+      // sign-in fetching an avatar we never render. The ID token alone has all we need —
+      // and Graph scopes aren't issued to CIAM tenants anyway, so asking would fail.
       authorization: { params: { scope: "openid profile email" } },
       profile: (profile) => ({
-        // oid is the immutable per-tenant user id and is what routes.user_id stores. sub
-        // (the provider default) is per-application, so it would break if the app ever
-        // moved to a different registration.
+        // Note this `id` does NOT become session.user.id — Auth.js overwrites that with a
+        // random UUID and keeps this value as account.providerAccountId. The id the app
+        // actually stores is derived from the ID token claims in the jwt callback below.
         id: profile.oid,
         name: profile.name,
         // `email` is only present when the tenant emits it as an optional claim; upn /
@@ -31,8 +34,20 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   pages: { signIn: "/sign-in", error: "/sign-in" },
   trustHost: true,
   callbacks: {
-    jwt({ token, user }) {
-      if (user) token.id = user.id;
+    jwt({ token, profile }) {
+      // `profile` is only populated on the sign-in call; later calls just carry the token
+      // forward. Deliberately NOT using `user.id`: for OAuth providers Auth.js replaces it
+      // with a fresh crypto.randomUUID() on every sign-in, so the same person would get a
+      // new user_id each time and lose every route they had already created.
+      if (profile) {
+        // oid is the immutable per-tenant object id. sub is a per-application pairwise id
+        // and is guaranteed present in any OIDC token, so it is a safe last resort.
+        const id = profile.oid ?? profile.sub;
+        if (typeof id !== "string") {
+          throw new Error("Entra ID token carried neither an 'oid' nor a 'sub' claim");
+        }
+        token.id = id;
+      }
       return token;
     },
     session({ session, token }) {
