@@ -23,14 +23,9 @@ export function NavBar() {
             </button>
           </>
         ) : (
-          <>
-            <Link href="/sign-in" className="underline">
-              Sign in
-            </Link>
-            <Link href="/sign-up" className="underline">
-              Sign up
-            </Link>
-          </>
+          <Link href="/sign-in" className="underline">
+            Sign in
+          </Link>
         )}
       </nav>
     </header>

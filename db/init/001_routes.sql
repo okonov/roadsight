@@ -1,6 +1,6 @@
 CREATE TABLE routes (
   id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id           text NOT NULL, -- no FK: users are in-memory until the Entra ID phase
+  user_id           text NOT NULL, -- Entra ID object id (oid claim); no local users table, so no FK
   name              text NOT NULL,
   description       text NOT NULL DEFAULT '',
   status            text NOT NULL DEFAULT 'draft'

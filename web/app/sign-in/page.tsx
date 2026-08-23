@@ -1,78 +1,45 @@
-"use client";
+import { signIn } from "@/auth";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { signIn } from "next-auth/react";
+// Auth.js bounces failed sign-ins back here with ?error=<code>. Only the codes a user can
+// realistically hit get their own wording; everything else falls through to the generic one.
+const ERROR_MESSAGES: Record<string, string> = {
+  AccessDenied: "That account isn't allowed to use RoadSight.",
+  Configuration: "Sign-in isn't configured correctly. Check the Entra ID settings.",
+  Verification: "That sign-in link has expired. Try again.",
+};
 
-export default function SignInPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setSubmitting(true);
-
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    });
-
-    setSubmitting(false);
-
-    if (result?.error) {
-      setError("Invalid email or password.");
-      return;
-    }
-
-    router.push("/routes");
-    router.refresh();
-  }
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string; callbackUrl?: string }>;
+}) {
+  const { error, callbackUrl } = await searchParams;
 
   return (
     <div className="mx-auto mt-16 max-w-sm px-4">
       <h1 className="text-2xl font-semibold">Sign in</h1>
-      <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
-        <label className="flex flex-col gap-1 text-sm">
-          Email
-          <input
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="rounded border border-foreground/20 bg-foreground/5 px-3 py-2 text-foreground"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Password
-          <input
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="rounded border border-foreground/20 bg-foreground/5 px-3 py-2 text-foreground"
-          />
-        </label>
-        {error && <p className="text-sm text-red-600">{error}</p>}
+      <p className="mt-2 text-sm text-foreground/60">
+        RoadSight uses your Microsoft work or school account.
+      </p>
+      {error && (
+        <p className="mt-4 text-sm text-red-600">
+          {ERROR_MESSAGES[error] ?? "Sign in failed. Please try again."}
+        </p>
+      )}
+      <form
+        action={async () => {
+          "use server";
+          await signIn("microsoft-entra-id", { redirectTo: callbackUrl ?? "/routes" });
+        }}
+        className="mt-6"
+      >
         <button
           type="submit"
-          disabled={submitting}
-          className="rounded bg-foreground px-4 py-2 text-background disabled:opacity-50"
+          className="w-full rounded bg-foreground px-4 py-2 text-background"
         >
-          {submitting ? "Signing in…" : "Sign in"}
+          Sign in with Microsoft
         </button>
       </form>
-      <p className="mt-4 text-sm">
-        No account?{" "}
-        <Link href="/sign-up" className="underline">
-          Sign up
-        </Link>
-      </p>
     </div>
   );
 }
