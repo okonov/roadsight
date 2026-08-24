@@ -1,0 +1,8 @@
+@mapsKey = {{$dotenv AZURE_MAPS_KEY}}
+
+GET https://atlas.microsoft.com/map/static
+  ?api-version=2024-04-01
+  &tilesetId=microsoft.base.road
+  &zoom=10
+  &center=-122.177621,47.613079
+  &subscription-key={{mapsKey}}
