@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { RouteMap } from "@/components/route-map";
+import { MAP_PIN_COLORS } from "@/lib/maps/static-map";
 import { Route } from "@/lib/routes/types";
 
 interface AddRouteWizardProps {
@@ -211,13 +213,29 @@ export function AddRouteWizard({
         <p className="text-sm text-foreground/60">
           Check the resolved origin and destination, then confirm:
         </p>
+        <RouteMap route={route} />
         <div className="flex flex-col gap-2 sm:flex-row">
           {[
-            { title: "Origin", place: route.origin },
-            { title: "Destination", place: route.destination },
-          ].map(({ title, place }) => (
+            { title: "Origin", place: route.origin, pin: "A", color: MAP_PIN_COLORS.origin },
+            {
+              title: "Destination",
+              place: route.destination,
+              pin: "B",
+              color: MAP_PIN_COLORS.destination,
+            },
+          ].map(({ title, place, pin, color }) => (
             <div key={title} className="flex-1 rounded border border-foreground/10 px-3 py-2">
-              <div className="text-xs font-medium uppercase text-foreground/50">{title}</div>
+              <div className="flex items-center gap-1.5 text-xs font-medium uppercase text-foreground/50">
+                {/* Ties the card to its pin on the map above. */}
+                <span
+                  aria-hidden
+                  className="flex size-4 items-center justify-center rounded-full text-[10px] font-semibold text-white"
+                  style={{ backgroundColor: color }}
+                >
+                  {pin}
+                </span>
+                {title}
+              </div>
               <div className="text-sm">{place?.label}</div>
               <div className="text-xs text-foreground/50">
                 {place && `${place.lat.toFixed(4)}, ${place.lng.toFixed(4)}`}

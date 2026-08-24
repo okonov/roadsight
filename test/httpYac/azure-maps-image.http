@@ -1,8 +1,29 @@
 @mapsKey = {{$dotenv AZURE_MAPS_KEY}}
 
+# Static map image of a point, with a marker and label. The label is the only text that can be added to a static map image; it is not used for geocoding or routing.
 GET https://atlas.microsoft.com/map/static
   ?api-version=2024-04-01
   &tilesetId=microsoft.base.road
   &zoom=10
   &center=-122.177621,47.613079
+  &subscription-key={{mapsKey}}
+
+# What the app actually sends for the confirmation-step map (Lougheed Town Centre ->
+# Squamish). Two `pins` parameters — one per colour — need an S1+ SKU; verified working on
+# the roadsight account, which is also the tier the route `path` overlay will need.
+#
+# `center`+`zoom` rather than `bbox`: bbox cannot be combined with width/height (it forces
+# the default 512x512 square) and constrains the allowed lat/lon span per zoom level. The
+# zoom below is what lib/maps/static-map.ts computes for this pair at 640x400.
+### Endpoints with pins
+@name endpoints
+GET https://atlas.microsoft.com/map/static
+  ?api-version=2024-04-01
+  &tilesetId=microsoft.base.road
+  &center=-123.0268,49.45985338907927
+  &zoom=8
+  &width=640
+  &height=400
+  &pins=default%7Cco1A7F37%7ClcFFFFFF%7C%7C%27A%27-122.8969+49.2486
+  &pins=default%7CcoC02626%7ClcFFFFFF%7C%7C%27B%27-123.1567+49.6702
   &subscription-key={{mapsKey}}
