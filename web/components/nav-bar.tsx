@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
+import { federatedSignOut } from "@/lib/sign-out";
 
 export function NavBar() {
   const { data: session, status } = useSession();
@@ -18,9 +19,11 @@ export function NavBar() {
               My routes
             </Link>
             <span className="text-foreground/60">{session.user?.email}</span>
-            <button type="button" onClick={() => signOut({ callbackUrl: "/" })} className="underline">
-              Sign out
-            </button>
+            <form action={federatedSignOut}>
+              <button type="submit" className="underline">
+                Sign out
+              </button>
+            </form>
           </>
         ) : (
           <Link href="/sign-in" className="underline">
