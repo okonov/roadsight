@@ -3,14 +3,35 @@ import { GeoPoint } from "@/lib/routes/types";
 const STATIC_IMAGE_URL = "https://atlas.microsoft.com/map/static";
 const API_VERSION = "2024-04-01";
 
-/**
- * Rendered size in CSS pixels. Shared with the client component so the `<Image>` box and
- * the image the service actually returns cannot drift apart.
- */
-export const STATIC_MAP_SIZE = { width: 640, height: 400 } as const;
-
 /** Origin/destination pin colours, reused by the UI legend so the map is self-explaining. */
 export const MAP_PIN_COLORS = { origin: "#1A7F37", destination: "#C02626" } as const;
+
+interface MapSize {
+  width: number;
+  height: number;
+  /**
+   * Pin scale. `sc` scales the pin's *label* along with its image, so anything much below 1
+   * makes the A/B letters illegible — sizes that shrink their pins drop the labels instead
+   * and lean on colour alone.
+   */
+  pinScale: number;
+  /** Roughly a pin's height: below this the pin image is clipped by the image border. */
+  minPaddingPx: number;
+}
+
+/**
+ * Rendered sizes in CSS pixels, shared with the client components so the `<Image>` box and
+ * the image the service actually returns cannot drift apart. Both are 8:5.
+ *
+ * `thumbnail` is deliberately requested larger than it is displayed (~128 px wide) so it
+ * stays sharp on high-density screens.
+ */
+export const STATIC_MAP_SIZES = {
+  preview: { width: 640, height: 400, pinScale: 1, minPaddingPx: 36 },
+  thumbnail: { width: 240, height: 150, pinScale: 0.6, minPaddingPx: 24 },
+} as const satisfies Record<string, MapSize>;
+
+export type StaticMapSize = keyof typeof STATIC_MAP_SIZES;
 
 // Web Mercator, the projection Azure Maps renders in. The world is TILE_SIZE pixels wide
 // at zoom 0 and doubles per level.
@@ -22,7 +43,8 @@ export const MAP_PIN_COLORS = { origin: "#1A7F37", destination: "#C02626" } as c
 const TILE_SIZE = 512;
 
 // Fraction of each axis left empty on either side, so a pin near the edge keeps its
-// context and its ~40 px tall image is never clipped by the top border.
+// context. Floored at the size's minPaddingPx because a pin is a fixed number of pixels
+// tall no matter how small the canvas is — on a thumbnail the fraction alone would clip it.
 const PADDING = 0.12;
 
 // A confirmation map is about recognising *where* the route is. Zooming past street level
@@ -53,15 +75,19 @@ function unproject({ x, y }: WorldPoint): GeoPoint {
   };
 }
 
+function usable(extent: number, size: MapSize): number {
+  return extent - 2 * Math.max(extent * PADDING, size.minPaddingPx);
+}
+
 /**
- * Smallest view that holds both endpoints with PADDING to spare.
+ * Smallest view that holds both endpoints with the size's padding to spare.
  *
  * Deliberately center+zoom rather than the `bbox` parameter, which would express the same
  * intent more directly but cannot be combined with `width`/`height` — it pins the result to
  * the default 512x512 square — and additionally constrains the allowed lat/lon span per
  * zoom level, which a coincidental pair of nearby endpoints can violate.
  */
-function fitView(a: GeoPoint, b: GeoPoint): { center: GeoPoint; zoom: number } {
+function fitView(a: GeoPoint, b: GeoPoint, size: MapSize): { center: GeoPoint; zoom: number } {
   const pa = project(a);
   const pb = project(b);
   // Identical endpoints (the geocoder can roll both labels up to one place) would divide by
@@ -69,13 +95,13 @@ function fitView(a: GeoPoint, b: GeoPoint): { center: GeoPoint; zoom: number } {
   const spanX = Math.max(Math.abs(pa.x - pb.x), 1e-9);
   const spanY = Math.max(Math.abs(pa.y - pb.y), 1e-9);
 
-  const usableWidth = STATIC_MAP_SIZE.width * (1 - 2 * PADDING);
-  const usableHeight = STATIC_MAP_SIZE.height * (1 - 2 * PADDING);
-
   // The service takes integer zoom only, so this floors — which can only widen the margin,
   // never eat into it.
   const fitted = Math.floor(
-    Math.min(Math.log2(usableWidth / spanX), Math.log2(usableHeight / spanY)),
+    Math.min(
+      Math.log2(usable(size.width, size) / spanX),
+      Math.log2(usable(size.height, size) / spanY),
+    ),
   );
 
   return {
@@ -84,10 +110,15 @@ function fitView(a: GeoPoint, b: GeoPoint): { center: GeoPoint; zoom: number } {
   };
 }
 
-function pin(point: GeoPoint, color: string, label: string): string {
+function pin(point: GeoPoint, color: string, label: string, size: MapSize): string {
   // `co`/`lc` want bare six-digit hex. Locations are lng-then-lat, opposite of every other
   // coordinate in this codebase. URLSearchParams handles the required encoding.
-  return `default|co${color.replace("#", "")}|lcFFFFFF||'${label}'${point.lng} ${point.lat}`;
+  const style = [`default`, `co${color.replace("#", "")}`, `lcFFFFFF`];
+  if (size.pinScale !== 1) style.push(`sc${size.pinScale}`);
+  const location = `${point.lng} ${point.lat}`;
+  return size.pinScale < 1
+    ? `${style.join("|")}||${location}`
+    : `${style.join("|")}||'${label}'${location}`;
 }
 
 /**
@@ -100,19 +131,21 @@ export function staticMapUrl(
   origin: GeoPoint,
   destination: GeoPoint,
   subscriptionKey: string,
+  sizeName: StaticMapSize = "preview",
 ): string {
-  const { center, zoom } = fitView(origin, destination);
+  const size = STATIC_MAP_SIZES[sizeName];
+  const { center, zoom } = fitView(origin, destination, size);
 
   const params = new URLSearchParams({
     "api-version": API_VERSION,
     tilesetId: "microsoft.base.road",
     center: `${center.lng},${center.lat}`,
     zoom: String(zoom),
-    width: String(STATIC_MAP_SIZE.width),
-    height: String(STATIC_MAP_SIZE.height),
+    width: String(size.width),
+    height: String(size.height),
   });
-  params.append("pins", pin(origin, MAP_PIN_COLORS.origin, "A"));
-  params.append("pins", pin(destination, MAP_PIN_COLORS.destination, "B"));
+  params.append("pins", pin(origin, MAP_PIN_COLORS.origin, "A", size));
+  params.append("pins", pin(destination, MAP_PIN_COLORS.destination, "B", size));
   params.append("subscription-key", subscriptionKey);
 
   return `${STATIC_IMAGE_URL}?${params}`;

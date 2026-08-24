@@ -5,6 +5,7 @@ import { Route, RouteStatus } from "@/lib/routes/types";
 import { AddRouteWizard } from "@/components/add-route-wizard";
 import { RouteForm } from "@/components/route-form";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
+import { RouteMap } from "@/components/route-map";
 
 interface RouteListProps {
   initialRoutes: Route[];
@@ -93,7 +94,9 @@ export function RouteList({ initialRoutes }: RouteListProps) {
               />
             ) : (
               <>
-                <span className="flex min-w-0 flex-col">
+                {/* Nothing to draw until the route resolves, so drafts keep the plain row. */}
+                <RouteMap route={route} size="thumbnail" className="w-24 shrink-0 sm:w-32" />
+                <span className="flex min-w-0 grow flex-col">
                   <span className="flex items-center gap-2">
                     <span className="truncate">{route.name}</span>
                     <span
