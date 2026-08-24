@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth } from "@/auth";
+import { signInWithMicrosoft } from "@/lib/sign-in";
 
 export default async function Home() {
   const session = await auth();
@@ -15,9 +15,11 @@ export default async function Home() {
         Create named routes and, soon, check traffic camera images along the way.
       </p>
       <div className="mt-8 flex justify-center">
-        <Link href="/sign-in" className="rounded bg-foreground px-4 py-2 text-background">
-          Sign in with Microsoft
-        </Link>
+        <form action={signInWithMicrosoft.bind(null, "/routes")}>
+          <button type="submit" className="rounded bg-foreground px-4 py-2 text-background">
+            Sign in with Microsoft
+          </button>
+        </form>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { signIn } from "@/auth";
+import { signInWithMicrosoft } from "@/lib/sign-in";
 
 // Auth.js bounces failed sign-ins back here with ?error=<code>. Only the codes a user can
 // realistically hit get their own wording; everything else falls through to the generic one.
@@ -26,13 +26,7 @@ export default async function SignInPage({
           {ERROR_MESSAGES[error] ?? "Sign in failed. Please try again."}
         </p>
       )}
-      <form
-        action={async () => {
-          "use server";
-          await signIn("microsoft-entra-id", { redirectTo: callbackUrl ?? "/routes" });
-        }}
-        className="mt-6"
-      >
+      <form action={signInWithMicrosoft.bind(null, callbackUrl)} className="mt-6">
         <button
           type="submit"
           className="w-full rounded bg-foreground px-4 py-2 text-background"
