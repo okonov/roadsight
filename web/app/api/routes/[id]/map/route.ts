@@ -41,7 +41,14 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
 
   let upstream: Response;
   try {
-    upstream = await fetch(staticMapUrl(route.origin, route.destination, mapsKey, size));
+    upstream = await fetch(
+      staticMapUrl(
+        // Narrowed above, but the narrowing does not survive passing `route` as a whole.
+        { origin: route.origin, destination: route.destination, polyline: route.polyline },
+        mapsKey,
+        size,
+      ),
+    );
   } catch {
     return NextResponse.json({ error: "Map service unavailable" }, { status: 502 });
   }
