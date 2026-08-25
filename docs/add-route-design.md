@@ -70,10 +70,10 @@ flowchart LR
     GR --> AF
     GR --> GC
     PL --> MP
-    PL -.-> AM
+    PL --> AM
 
     classDef future stroke-dasharray: 5 5,opacity:0.7
-    class AM,AUTH future
+    class AUTH future
 ```
 
 *Dashed boxes are still future swaps. Each singleton picks its implementation in one file — no other file changes when a swap happens. `GeocodingRouteResolver` is a composite: it satisfies the `RouteResolver` contract by chaining a parser and a geocoder, so the swap point above it is unaware that resolution became two calls.*
@@ -569,8 +569,8 @@ No API or DB changes.
 
 ### Phase 3b — real Azure Maps planner
 
-- [ ] `AzureMapsRoutePlanner implements RoutePlanner`: Post Route Directions (§5.3); flatten the `RoutePath` MultiLineString into the GeoJSON LineString
-- [ ] One-line swap in `web/lib/routing/planner.ts` (reuses `AZURE_MAPS_KEY`)
+- [x] `AzureMapsRoutePlanner implements RoutePlanner`: Post Route Directions (§5.3); flatten the `RoutePath` MultiLineString into the GeoJSON LineString
+- [x] One-line swap in `web/lib/routing/planner.ts` (reuses `AZURE_MAPS_KEY`)
 
 No UI, API, or DB changes.
 
