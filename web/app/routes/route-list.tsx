@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useState } from "react";
-import { Route, RouteStatus } from "@/lib/routes/types";
+import { Route } from "@/lib/routes/types";
+import { formatDistance, formatDuration, statusStyles } from "@/lib/routes/format";
 import { AddRouteWizard } from "@/components/add-route-wizard";
 import { RouteForm } from "@/components/route-form";
 import { ConfirmDeleteButton } from "@/components/confirm-delete-button";
@@ -9,23 +11,6 @@ import { RouteMap } from "@/components/route-map";
 
 interface RouteListProps {
   initialRoutes: Route[];
-}
-
-const statusStyles: Record<RouteStatus, string> = {
-  draft: "border-foreground/20 text-foreground/50",
-  resolved: "border-amber-600/40 text-amber-600",
-  confirmed: "border-green-600/40 text-green-600",
-};
-
-function formatDistance(meters: number): string {
-  return `${(meters / 1000).toFixed(1)} km`;
-}
-
-function formatDuration(seconds: number): string {
-  const totalMinutes = Math.round(seconds / 60);
-  const h = Math.floor(totalMinutes / 60);
-  const m = totalMinutes % 60;
-  return h > 0 ? `${h} h ${m} min` : `${m} min`;
 }
 
 export function RouteList({ initialRoutes }: RouteListProps) {
@@ -119,6 +104,13 @@ export function RouteList({ initialRoutes }: RouteListProps) {
                     )}
                 </span>
                 <span className="flex shrink-0 items-center gap-3">
+                  {/* Only confirmed routes have a path to hang cameras off, so this is also what
+                      finally makes `confirmed` a destination rather than a dead end. */}
+                  {route.status === "confirmed" && (
+                    <Link href={`/routes/${route.id}`} className="text-sm underline">
+                      Cameras
+                    </Link>
+                  )}
                   {route.status !== "confirmed" && (
                     <button type="button" onClick={() => setResuming(route)} className="text-sm underline">
                       Resume

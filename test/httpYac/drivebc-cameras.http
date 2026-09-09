@@ -1,0 +1,50 @@
+# DriveBC webcam catalogue and images. No key: everything here is public and CORS-open
+# (`access-control-allow-origin: *`), which is why the app hotlinks the images instead of
+# proxying them the way it has to proxy Azure Maps.
+
+# Every published camera, as a bare JSON array. 1062 records on 2026-09-08; ~113 KB on the
+# wire (gzip) for ~1.2 MB of JSON, answered in ~190 ms. This is the app's camera catalogue —
+# `bc-cameras/webcams.csv` is a stale snapshot of the same data and is not used.
+### Catalogue
+@name catalogue
+GET https://www.drivebc.ca/api/webcams/
+
+?? status == 200
+?? header content-type == application/json
+
+# One camera, for the fields the app maps onto its own `Camera` type. The load-bearing ones
+# are `location` (GeoJSON [lng, lat]), `is_on` / `marked_stale` / `marked_delayed`, and
+# `last_update_modified`. `update_period_mean` is ~928 s, i.e. the picture changes about every
+# 15 minutes.
+### One camera
+GET https://www.drivebc.ca/api/webcams/193/
+
+?? status == 200
+
+# A live frame. Note `cache-control: no-cache` plus an `etag`, and that a conditional request
+# with `If-None-Match` returns 304 — exactly the right behaviour for a 15-minute feed, and the
+# reason the app sets no cache headers of its own and leaves `next/image` unoptimized.
+### Live frame
+GET https://www.drivebc.ca/images/193.jpg
+
+?? status == 200
+?? header content-type == image/jpeg
+
+# THE TRAP, recorded deliberately. Camera 826 is `is_on: false`, and DriveBC answers with
+# **200 and a JPEG** — a black frame with a red bar — not a 404. An `onError` handler will
+# never fire for it. Liveness must be read from `is_on`/`marked_stale` in the catalogue, never
+# from the image response.
+### Offline camera still returns 200
+GET https://www.drivebc.ca/images/826.jpg
+
+?? status == 200
+?? header content-type == image/jpeg
+
+# THE OTHER TRAP. This is the `links_imageDisplay` URL from bc-cameras/webcams.csv. It also
+# returns 200 — with an identical 40571-byte PNG placeholder for *every* camera id. Adopting
+# these URLs would render a wall of identical "unavailable" tiles with nothing to catch.
+### Legacy CSV image URL is a placeholder for every id
+GET https://images.drivebc.ca/bchighwaycam/pub/cameras/193.jpg
+
+?? status == 200
+?? header content-type == image/png

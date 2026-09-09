@@ -1,22 +1,9 @@
+import { haversineMeters } from "@/lib/geo/distance";
 import { GeoPoint, RoutePolyline } from "@/lib/routes/types";
 import { RoutePlan, RoutePlanner } from "./route-planner";
 
-const EARTH_RADIUS_M = 6371000;
 const ROAD_FACTOR = 1.25; // roads are not straight lines
 const AVG_SPEED_MPS = 60 / 3.6; // 60 km/h
-
-function toRad(deg: number): number {
-  return (deg * Math.PI) / 180;
-}
-
-function haversineMeters(a: GeoPoint, b: GeoPoint): number {
-  const dLat = toRad(b.lat - a.lat);
-  const dLng = toRad(b.lng - a.lng);
-  const s =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat)) * Math.sin(dLng / 2) ** 2;
-  return 2 * EARTH_RADIUS_M * Math.asin(Math.sqrt(s));
-}
 
 export class MockRoutePlanner implements RoutePlanner {
   async plan(origin: GeoPoint, destination: GeoPoint): Promise<RoutePlan | null> {
