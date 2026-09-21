@@ -16,7 +16,7 @@ import { Camera, RouteCamera } from "./types";
  * borrow each other's cameras; Highways 1 and 7 are about this far apart through parts of the
  * Fraser Valley. Tune here rather than anywhere else.
  */
-export const CORRIDOR_METERS = 2_000;
+export const CORRIDOR_METERS = 1_000;
 
 /** Upper bound on how many cameras a page will show. See `thin` for how the cut is made. */
 export const MAX_CAMERAS = 40;
