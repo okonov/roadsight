@@ -25,6 +25,16 @@ GET https://atlas.microsoft.com/geocode
   &top=1
   &subscription-key={{mapsKey}}
 
+# Street inersection lookup; need 'and' to be replaced with '&' and url encoded.
+### Oak St and W. 10th Ave
+@name burnaby
+GET https://atlas.microsoft.com/geocode
+  ?api-version=2026-01-01
+  &query=Oak%20St%20%26%20W.%2010th%20Ave
+  &coordinates=-123.1,49.3
+  &top=1
+  &subscription-key={{mapsKey}}
+
 # Landmark via the same freeform endpoint (Search v1's Get Search Fuzzy is superseded).
 # Check properties.confidence — the only gate signal that is reliably populated — and the
 # geocodePoints entry whose usageTypes contains "Route", which is the coordinate
