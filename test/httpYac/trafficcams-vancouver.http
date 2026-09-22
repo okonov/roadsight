@@ -1,0 +1,112 @@
+# trafficcams.vancouver.ca — City of Vancouver intersection cameras, second camera source
+# alongside DriveBC (drivebc-cameras.http). See docs/add-trafficcams-vancouver.md for the
+# full plan; this file exists to record the traps found while measuring the site, before any
+# app code exists (Phase 0).
+
+@mapsKey = {{$dotenv AZURE_MAPS_KEY}}
+
+# The undocumented internal endpoint behind the root page's "Find the intersection's pin on
+# the map" link. 219 placemarks — coordinates, name, and a link to the intersection's page —
+# for 216 pages the root page also lists. This is the *only* practical geolocation source
+# (see the geocode traps below); the crawl below is still required because the KML carries no
+# image URLs at all, only the site-level pin.
+#
+# Note the response: `content-disposition: attachment` and `x-aspnet-version: 2.0.50727` — a
+# 2005-era ASP.NET app with no documented API. It could disappear; §8.2 of the plan covers the
+# fallback.
+### KML placemarks
+@name kml
+GET https://vanmapp1.vancouver.ca/googleKml/traffic_cameras/
+
+?? status == 200
+?? header content-type == application/vnd.google-earth.kml+xml; charset=utf-8
+
+# One intersection page. Confirms the shape the crawler depends on: an `<h1 class="display-2">`
+# title and `<img src="cameraimages/…">` tags whose `alt` carries the direction (e.g.
+# `alt="Boundary Road and E 1st Ave - North"`) — the field to store, not the filename's corner
+# letter. See docs/add-trafficcams-vancouver.md §1 for the full parsing rules (whitespace in
+# hrefs, case-insensitive paths, the five images with no ` - ` in their alt).
+### One intersection page
+GET https://trafficcams.vancouver.ca/boundary1.htm
+
+?? status == 200
+?? header content-type == text/html
+
+# A live frame. `ETag` + `Last-Modified`, but **no `Cache-Control`** — unlike DriveBC, which
+# sets `no-cache` explicitly. Browsers fall back to heuristic freshness here, which is why the
+# app's own cache-busting (`?t=` bucketed to the minute) cannot rely on any server-side cache
+# header and must be computed independently. The etag is captured for the conditional request
+# below rather than hardcoded — each camera refreshes on its own 5-minute offset, so a fixed
+# etag value goes stale within minutes of being recorded.
+### Live frame
+GET https://trafficcams.vancouver.ca/cameraimages/Boundary1stSNorth.jpg
+
+?? status == 200
+?? header content-type == image/jpeg
+
+{{
+  exports.boundaryEtag = response.headers.etag;
+}}
+
+# Conditional GET on the same image, replayed with the `etag` captured above. Confirms the
+# server honours `If-None-Match` with a real 304 despite advertising no `Cache-Control` —
+# the one caching signal this site does give.
+### Live frame, conditional
+GET https://trafficcams.vancouver.ca/cameraimages/Boundary1stSNorth.jpg
+If-None-Match: {{boundaryEtag}}
+
+?? status == 304
+
+# --- Geocoding traps ---------------------------------------------------------------------
+#
+# The plan's original query form (`&` substitution + coordinate bias, no city name) was the
+# one already used for route waypoints. It fails silently for intersections: it can land in
+# the wrong *province* at a confidence level ("Medium") that is indistinguishable from a real
+# hit, so the existing `Low`-confidence gate in AzureMapsGeocoder never catches it. The city
+# suffix is mandatory; see docs/add-trafficcams-vancouver.md §2 for the full 216-title survey.
+
+# THE TRAP. Unqualified, this resolves to a real Main-St-and-Marine-Dr address — just not
+# Vancouver's. `addressLine` echoes back a clean `&` match (the app's only reliable gate) at
+# `Medium` confidence, so neither `confidence` nor "does it contain &" catches this alone.
+### Unqualified intersection — wrong province, looks like a hit
+@name unqualifiedWrongProvince
+GET https://atlas.microsoft.com/geocode
+  ?api-version=2026-01-01
+  &query=Main%20St%20%26%20Marine%20Dr
+  &coordinates=-123.1,49.3
+  &top=1
+  &subscription-key={{mapsKey}}
+
+?? status == 200
+
+# Same query, city-qualified. Lands in Vancouver this time, but at the *wrong* Marine Drive —
+# West Vancouver's, near Ambleside, ~13 km from the real Main St & Marine Dr in South
+# Vancouver — still at `Medium` confidence. This is the pair the plan's §8.6 refers to: the
+# structured and freeform forms disagree with each other here by ~420 m, and neither is
+# right. The KML settles it; Azure geocoding is the fallback for sites missing from the KML,
+# not the primary source, precisely because of pairs like this one.
+### Qualified intersection — right city, still the wrong street
+@name qualifiedWrongStreet
+GET https://atlas.microsoft.com/geocode
+  ?api-version=2026-01-01
+  &query=Main%20St%20%26%20Marine%20Dr%2C%20Vancouver%2C%20BC
+  &coordinates=-123.1,49.3
+  &top=1
+  &subscription-key={{mapsKey}}
+
+?? status == 200
+
+# A city-qualified query that *does* land correctly, for contrast — most titles resolve fine
+# once qualified (189/216 under this form alone per the plan's survey). The gate is still
+# `addressLine` containing `&`; `confidence` (`High` here, `Medium` above) does not reliably
+# separate the two.
+### Qualified intersection — correct hit
+@name qualifiedHit
+GET https://atlas.microsoft.com/geocode
+  ?api-version=2026-01-01
+  &query=Oak%20St%20%26%20W%2010th%20Ave%2C%20Vancouver%2C%20BC
+  &coordinates=-123.1,49.3
+  &top=1
+  &subscription-key={{mapsKey}}
+
+?? status == 200
