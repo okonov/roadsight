@@ -1,0 +1,16 @@
+GET https://trafficcams.vancouver.ca/cameraimages/Boundary1stSNorth.jpg
+
+?? status == 200
+?? header content-type == image/jpeg
+
+{{
+  exports.boundaryEtag = response.headers.etag;
+  console.info(`ETag: ${response.headers.etag}`);
+}}
+
+GET https://trafficcams.vancouver.ca/cameraimages/Boundary1stSNorth.jpg
+If-None-Match: {{boundaryEtag}}
+
+{{
+  console.info(`If-None-Match header: ${boundaryEtag}`);
+}}
