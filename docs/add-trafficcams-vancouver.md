@@ -201,7 +201,7 @@ Page weight: 40 × ~300 KB is 12 MB if a route is entirely inside the city. `nex
 - [x] `lib/cameras/vancouver/parse-*.mjs` — pure parsers + a committed fixture of one intersection page and a trimmed KML. Written as `.mjs` rather than `.ts`: the sync script runs under plain `node`, and this keeps it dependency-free with no build step, same as `fetch-camera-snapshot.mjs`. Validated against the live site: all 219 pages / 844 images parsed with zero fallback failures, and every documented anomaly (`Northeast`, `South Main`, `West exit`, `Seymour`, …) reproduced exactly.
 - [x] `scripts/sync-vancouver-cameras.mjs` — `crawl` + `geocode`, summary line, loud failure on a short list
 - [x] Migration applied to `roadsight_dev` on Azure (`vancouver_camera_sites`, `vancouver_cameras` confirmed present) — via `pg` directly with the admin role, not the VS Code extension, which failed to negotiate SSL for that connection despite `ssl: true`
-- [ ] Run the sync script (`crawl` + `geocode`); hand-fix any site left without a location (expected: none while the KML is up)
+- [x] Ran the sync script against `roadsight_dev`: crawl found 219 sites / 844 cameras (all new), 0 retired, 0 without a location; geocode ran with 0 sites needing it (0 Azure calls) — no manual fixes needed
 - [x] `.env.local.example`: nothing new — `DATABASE_URL` and `AZURE_MAPS_KEY` already exist
 
 **Phase 2 — the page**

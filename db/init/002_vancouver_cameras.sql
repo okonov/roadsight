@@ -25,3 +25,9 @@ CREATE TABLE vancouver_cameras (
 );
 
 CREATE INDEX vancouver_cameras_site_id_idx ON vancouver_cameras (site_id);
+
+-- create_db_user.sql grants roadsight_app SELECT/INSERT/UPDATE/DELETE on tables (and future
+-- tables, via ALTER DEFAULT PRIVILEGES), but that does not cover sequences. routes.id sidesteps
+-- this with a uuid default; these two serial columns need the sequence privilege explicit, or
+-- every INSERT's implicit nextval() fails with "permission denied for sequence".
+GRANT USAGE, SELECT ON vancouver_camera_sites_id_seq, vancouver_cameras_id_seq TO roadsight_app;
