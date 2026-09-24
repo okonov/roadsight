@@ -1,13 +1,18 @@
 "use client";
 
-import { useState } from "react";
-import { CORRIDOR_METERS } from "@/lib/cameras/along-route";
+import { useMemo, useState } from "react";
+import { CORRIDOR_METERS, DEFAULT_CORRIDOR_METERS, thin } from "@/lib/cameras/along-route";
 import { CameraCatalogue, RouteCamera } from "@/lib/cameras/types";
 import { CameraCard } from "./camera-card";
 
 interface CameraGridProps {
-  /** Matched at the widest corridor choice; narrower choices below filter this in the browser. */
+  /**
+   * Every match at the widest corridor choice, unthinned and in travel order. The grid filters
+   * to the chosen width and thins that to `MAX_CAMERAS` itself.
+   */
   cameras: RouteCamera[];
+  /** The path's length as `thin` measures it, so its stretches match the server's maths. */
+  routeLengthMeters: number;
   /** Null when DriveBC could not be reached at all and there was no snapshot to fall back on. */
   catalogue: CameraCatalogue | null;
   /** Server render time, handed to every card for its image URL; see `cameraImageUrl`. */
@@ -23,22 +28,36 @@ function Note({ children }: { children: React.ReactNode }) {
  *
  * `cameras` is always matched server-side at `CORRIDOR_METERS`, the widest choice here, so
  * picking a smaller one is a client-side filter over `distanceFromRouteMeters` rather than a
- * new request — every narrower choice is a subset of what already arrived.
+ * new request — every narrower choice is a subset of what already arrived. Thinning runs after
+ * the filter, so a narrower choice is not left with a fraction of the widest one's forty.
  */
-const CORRIDOR_CHOICES: number[] = [CORRIDOR_METERS, 500, 200];
+const CORRIDOR_CHOICES: number[] = [100, DEFAULT_CORRIDOR_METERS, CORRIDOR_METERS];
 
 function formatCorridor(meters: number): string {
   return meters % 1000 === 0 ? `${meters / 1000} km` : `${meters} m`;
 }
 
-export function CameraGrid({ cameras, catalogue, renderedAtMs }: CameraGridProps) {
-  const [corridorMeters, setCorridorMeters] = useState<number>(CORRIDOR_METERS);
+export function CameraGrid({
+  cameras,
+  routeLengthMeters,
+  catalogue,
+  renderedAtMs,
+}: CameraGridProps) {
+  const [corridorMeters, setCorridorMeters] = useState<number>(DEFAULT_CORRIDOR_METERS);
+
+  // Before the early return: hooks must run on every render.
+  const filtered = useMemo(
+    () =>
+      thin(
+        cameras.filter((camera) => camera.distanceFromRouteMeters <= corridorMeters),
+        routeLengthMeters,
+      ),
+    [cameras, corridorMeters, routeLengthMeters],
+  );
 
   if (!catalogue) {
     return <Note>Camera information is unavailable right now.</Note>;
   }
-
-  const filtered = cameras.filter((camera) => camera.distanceFromRouteMeters <= corridorMeters);
 
   return (
     <div className="flex flex-col gap-3">

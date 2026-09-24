@@ -1,4 +1,4 @@
-import { camerasAlongRoute } from "@/lib/cameras/along-route";
+import { camerasAlongRoute, pathLengthMeters } from "@/lib/cameras/along-route";
 import { cameraCatalogue } from "@/lib/cameras/catalogue";
 import { CameraCatalogue } from "@/lib/cameras/types";
 import { RoutePolyline } from "@/lib/routes/types";
@@ -15,8 +15,10 @@ interface RouteCamerasProps {
  * header and its map paint immediately, and a slow or unreachable source costs the reader a
  * spinner in one panel rather than the whole page.
  *
- * Matching happens here rather than in the browser because the catalogue is a thousand cameras
- * and the answer is forty of them.
+ * Matching happens here rather than in the browser because the catalogue is two thousand
+ * cameras and the answer is at most a couple of hundred. Thinning to forty does not: it happens
+ * in the grid, per corridor choice, so every width gets a full, evenly spread forty rather than
+ * the survivors of the widest one's cut.
  */
 export async function RouteCameras({ polyline }: RouteCamerasProps) {
   let catalogue: CameraCatalogue | null = null;
@@ -28,11 +30,20 @@ export async function RouteCameras({ polyline }: RouteCamerasProps) {
     console.warn("Camera catalogue unavailable:", error);
   }
 
-  const cameras = catalogue ? camerasAlongRoute(polyline, catalogue.cameras) : [];
+  const cameras = catalogue
+    ? camerasAlongRoute(polyline, catalogue.cameras, { limit: Infinity })
+    : [];
   // Read once, here on the server, so the image URLs that depend on it are identical in the
   // server HTML and the hydrated client. The purity rule is aimed at components that re-render;
   // this is an async server component that renders once per request, so "impure" is the point.
   // eslint-disable-next-line react-hooks/purity
   const renderedAtMs = Date.now();
-  return <CameraGrid cameras={cameras} catalogue={catalogue} renderedAtMs={renderedAtMs} />;
+  return (
+    <CameraGrid
+      cameras={cameras}
+      routeLengthMeters={pathLengthMeters(polyline)}
+      catalogue={catalogue}
+      renderedAtMs={renderedAtMs}
+    />
+  );
 }

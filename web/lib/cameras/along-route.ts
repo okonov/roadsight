@@ -11,12 +11,20 @@ import { Camera, RouteCamera } from "./types";
 /**
  * How far off the path a camera may sit and still count as "along this route".
  *
- * Generous on purpose — a camera is mounted beside the road, and a route's polyline is a
- * simplification of it. The cost of being generous is that two highways running close together
- * borrow each other's cameras; Highways 1 and 7 are about this far apart through parts of the
- * Fraser Valley. Tune here rather than anywhere else.
+ * This is the widest choice the page offers and the width the server matches at; narrower
+ * choices filter what it found. It was 1 km until the City of Vancouver's intersection cameras
+ * arrived: on a street grid 1 km reaches parallel streets five blocks over, and on SFU -> UBC it
+ * matched 239 cameras, most of them on roads the route never touches. Tune here rather than
+ * anywhere else.
  */
-export const CORRIDOR_METERS = 1_000;
+export const CORRIDOR_METERS = 500;
+
+/**
+ * The corridor a route page opens at. Tight enough to keep a grid of intersections to the
+ * streets actually driven, while still catching a highway camera mounted on an interchange
+ * ramp beside the simplified path.
+ */
+export const DEFAULT_CORRIDOR_METERS = 200;
 
 /** Upper bound on how many cameras a page will show. See `thin` for how the cut is made. */
 export const MAX_CAMERAS = 40;
@@ -68,6 +76,12 @@ export function camerasAlongRoute(
   return thin(matched, cumulative[cumulative.length - 1], limit);
 }
 
+/** The path's own length, as `thin` measures it — see `cumulativeLengths` for why it differs. */
+export function pathLengthMeters(polyline: RoutePolyline): number {
+  const cumulative = cumulativeLengths(polyline);
+  return cumulative[cumulative.length - 1] ?? 0;
+}
+
 /**
  * At most `limit` cameras, spread over the whole route.
  *
@@ -85,8 +99,15 @@ export function camerasAlongRoute(
  * Measured on Burnaby -> Squamish: 46 matches thinned to 40 covering all 22 distinct sites from
  * km 0.2 to km 70.7. Without the per-site step the same cut spent four slots on Capilano and
  * dropped the Lonsdale interchange entirely.
+ *
+ * Exported so the grid can re-thin in the browser per corridor choice: a narrower corridor
+ * must get its own forty, not whatever survived of the widest one's.
  */
-function thin(matched: RouteCamera[], routeLength: number, limit: number): RouteCamera[] {
+export function thin(
+  matched: RouteCamera[],
+  routeLength: number,
+  limit: number = MAX_CAMERAS,
+): RouteCamera[] {
   if (matched.length <= limit) return matched;
 
   // A zero-length path has no stretches to spread across; fall back to the closest few.
