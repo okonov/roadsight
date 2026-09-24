@@ -122,8 +122,14 @@ export function CameraCard({ camera, ordinal, renderedAtMs }: CameraCardProps) {
 
         <p className="flex items-center justify-between gap-2 text-xs text-foreground/40">
           {/* `title` carries the absolute time; the relative one appears once the clock is the
-              browser's. Rendering nothing beforehand avoids a hydration mismatch. */}
-          <span title={hasTimestamp ? new Date(updatedAtMs).toLocaleString() : undefined}>
+              browser's. Rendering nothing beforehand avoids a hydration mismatch — and that
+              goes for the title too: `toLocaleString` formats in the server's locale and time
+              zone during SSR, and React does not patch a mismatched attribute afterwards. */}
+          <span
+            title={
+              hasTimestamp && nowMs !== null ? new Date(updatedAtMs).toLocaleString() : undefined
+            }
+          >
             {hasTimestamp && nowMs !== null ? `updated ${formatAge(updatedAtMs, nowMs)}` : ""}
           </span>
           <span className="shrink-0">{camera.credit || camera.dbcMark}</span>
