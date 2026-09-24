@@ -10,6 +10,8 @@ interface CameraGridProps {
   cameras: RouteCamera[];
   /** Null when DriveBC could not be reached at all and there was no snapshot to fall back on. */
   catalogue: CameraCatalogue | null;
+  /** Server render time, handed to every card for its image URL; see `cameraImageUrl`. */
+  renderedAtMs: number;
 }
 
 function Note({ children }: { children: React.ReactNode }) {
@@ -29,7 +31,7 @@ function formatCorridor(meters: number): string {
   return meters % 1000 === 0 ? `${meters / 1000} km` : `${meters} m`;
 }
 
-export function CameraGrid({ cameras, catalogue }: CameraGridProps) {
+export function CameraGrid({ cameras, catalogue, renderedAtMs }: CameraGridProps) {
   const [corridorMeters, setCorridorMeters] = useState<number>(CORRIDOR_METERS);
 
   if (!catalogue) {
@@ -43,7 +45,7 @@ export function CameraGrid({ cameras, catalogue }: CameraGridProps) {
       <p className="flex flex-wrap items-center gap-x-1 text-sm text-foreground/50">
         <span>
           {filtered.length === 0
-            ? "No DriveBC cameras within"
+            ? "No cameras within"
             : `${filtered.length} ${filtered.length === 1 ? "camera" : "cameras"} within`}
         </span>
         <select
@@ -74,7 +76,7 @@ export function CameraGrid({ cameras, catalogue }: CameraGridProps) {
 
       {catalogue.origin === "snapshot" && (
         <p className="rounded border border-amber-600/40 px-3 py-2 text-xs text-amber-600">
-          DriveBC is unreachable, so this list was taken from a saved copy
+          DriveBC is unreachable, so its cameras were taken from a saved copy
           {` (${new Date(catalogue.fetchedAt).toLocaleDateString()})`}. Cameras added or removed
           since then are missing, but the pictures themselves still come straight from DriveBC.
         </p>
@@ -83,7 +85,12 @@ export function CameraGrid({ cameras, catalogue }: CameraGridProps) {
       {filtered.length > 0 && (
         <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((camera, index) => (
-            <CameraCard key={camera.id} camera={camera} ordinal={index + 1} />
+            <CameraCard
+              key={camera.id}
+              camera={camera}
+              ordinal={index + 1}
+              renderedAtMs={renderedAtMs}
+            />
           ))}
         </ul>
       )}

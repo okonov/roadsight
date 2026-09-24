@@ -1,9 +1,26 @@
 import { Camera } from "./types";
 
 const IMAGE_BASE = "https://www.drivebc.ca/images";
+const VANCOUVER_IMAGE_BASE = "https://trafficcams.vancouver.ca";
+
+/** Width of Vancouver's `?t=` clock bucket; see `vancouverImageUrl`. */
+const VANCOUVER_BUCKET_MS = 60 * 1000;
 
 /**
- * Live frame for a camera.
+ * Live frame for a camera, from whichever source publishes it.
+ *
+ * `nowMs` must be one server-side timestamp for the whole render, passed down to the client:
+ * a Vancouver URL depends on it, and the card is a client component, so a clock read in the
+ * browser would produce different HTML from the server's and fail hydration.
+ */
+export function cameraImageUrl(camera: Camera, nowMs: number): string {
+  return camera.source === "vancouver"
+    ? vancouverImageUrl(camera, nowMs)
+    : driveBcImageUrl(camera);
+}
+
+/**
+ * A DriveBC frame.
  *
  * Hotlinked rather than proxied: unlike the Azure Maps static image, this URL carries no
  * secret, DriveBC serves it with `access-control-allow-origin: *`, and putting up to forty
@@ -20,12 +37,26 @@ const IMAGE_BASE = "https://www.drivebc.ca/images";
  * NOTE: a camera with `isOn: false` still answers 200 here, with a black frame. Callers must
  * check the flag rather than waiting for an error that will not come.
  */
-export function cameraImageUrl(camera: Camera): string {
-  const url = `${IMAGE_BASE}/${camera.id}.jpg`;
+function driveBcImageUrl(camera: Camera): string {
+  const url = `${IMAGE_BASE}/${camera.sourceKey}.jpg`;
   if (!camera.lastUpdated) return url;
 
   const updatedAtMs = Date.parse(camera.lastUpdated);
   if (Number.isNaN(updatedAtMs)) return url;
 
   return `${url}?t=${Math.floor(updatedAtMs / 1000)}`;
+}
+
+/**
+ * A City of Vancouver frame. Hotlinked for the same reasons as DriveBC's, and never proxied —
+ * the terms question in docs/add-trafficcams-vancouver.md §8.1 rests on the viewer's browser
+ * fetching straight from the City.
+ *
+ * The City publishes no per-camera timestamp, so `?t=` is clock-bucketed to the minute: short
+ * enough that the next page view picks up the five-minute refresh, long enough that a
+ * re-render within the minute is a memory-cache hit. The cost is that a new bucket is a new
+ * URL, so the City's `ETag` never gets used and each page view re-downloads the frame.
+ */
+function vancouverImageUrl(camera: Camera, nowMs: number): string {
+  return `${VANCOUVER_IMAGE_BASE}/${camera.sourceKey}?t=${Math.floor(nowMs / VANCOUVER_BUCKET_MS)}`;
 }

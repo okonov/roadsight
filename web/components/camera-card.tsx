@@ -7,8 +7,8 @@ import { RouteCamera } from "@/lib/cameras/types";
 import { useNow } from "./use-now";
 
 /**
- * DriveBC frames are around 800x450. Requesting a fixed 16:9 box and cropping to it keeps the
- * grid from reflowing when a camera returns something a little off-ratio.
+ * DriveBC frames are around 800x450; the City of Vancouver's are 720x480 (3:2). Requesting a
+ * fixed 16:9 box and cropping to it keeps the grid from reflowing between the two.
  */
 const IMAGE_WIDTH = 480;
 const IMAGE_HEIGHT = 270;
@@ -23,6 +23,8 @@ interface CameraCardProps {
   camera: RouteCamera;
   /** Position along the route, 1-based — the thing that makes this a drive rather than a gallery. */
   ordinal: number;
+  /** Server render time, for the image URL; see `cameraImageUrl`. */
+  renderedAtMs: number;
 }
 
 function formatAlong(meters: number): string {
@@ -42,7 +44,7 @@ function formatAge(updatedAtMs: number, nowMs: number): string {
   return `${Math.round(hours / 24)} d ago`;
 }
 
-export function CameraCard({ camera, ordinal }: CameraCardProps) {
+export function CameraCard({ camera, ordinal, renderedAtMs }: CameraCardProps) {
   const [imageFailed, setImageFailed] = useState(false);
 
   // Null until mounted, so the age is only ever computed against the browser's clock. Also
@@ -70,14 +72,17 @@ export function CameraCard({ camera, ordinal }: CameraCardProps) {
       <div className="relative aspect-video bg-foreground/5">
         {showImage ? (
           <Image
-            src={cameraImageUrl(camera)}
-            alt={camera.caption || camera.name}
+            src={cameraImageUrl(camera, renderedAtMs)}
+            alt={
+              camera.caption ||
+              (camera.orientation ? `${camera.name} - ${camera.orientation}` : camera.name)
+            }
             width={IMAGE_WIDTH}
             height={IMAGE_HEIGHT}
-            // Straight from DriveBC, which sends `cache-control: no-cache` with an ETag and
+            // Straight from the source. DriveBC sends `cache-control: no-cache` with an ETag and
             // answers conditional requests with a 304. Next's optimizer would cache the frame
             // for at least its 4-hour minimum with no way to invalidate it — four hours of a
-            // picture that changes every fifteen minutes.
+            // picture that changes every five to fifteen minutes.
             unoptimized
             onError={() => setImageFailed(true)}
             className="h-full w-full object-cover"

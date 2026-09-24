@@ -60,7 +60,9 @@ type DriveBcCamera = z.infer<typeof driveBcCameraSchema>;
 function toCamera(raw: DriveBcCamera): Camera {
   const [lng, lat] = raw.location.coordinates;
   return {
-    id: raw.id,
+    id: `drivebc:${raw.id}`,
+    source: "drivebc",
+    sourceKey: String(raw.id),
     // DriveBC keeps an editorial override alongside the machine-generated value and shows the
     // override when it is set.
     name: raw.name_override || raw.name || `Camera ${raw.id}`,
@@ -70,7 +72,7 @@ function toCamera(raw: DriveBcCamera): Camera {
     regionName: raw.region_name || "",
     orientation: raw.orientation || "",
     // A camera with no group is its own site, which is what its own id already expresses.
-    group: raw.group ?? raw.id,
+    group: `drivebc:${raw.group ?? raw.id}`,
     location: { lat, lng },
     isOn: raw.is_on ?? true,
     isStale: raw.marked_stale ?? false,

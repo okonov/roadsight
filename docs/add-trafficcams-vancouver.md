@@ -205,10 +205,25 @@ Page weight: 40 × ~300 KB is 12 MB if a route is entirely inside the city. `nex
 - [x] `.env.local.example`: nothing new — `DATABASE_URL` and `AZURE_MAPS_KEY` already exist
 
 **Phase 2 — the page**
-- [ ] `Camera.id`/`group` → string, `source` added; DriveBC mapper updated; snapshot still parses
-- [ ] `VancouverCameraSource`, `CompositeCameraSource`, `catalogue.ts`
-- [ ] `cameraImageUrl` by source; card attribution; footer
-- [ ] Measure a city-origin route: candidate count, match time, first-card km
+- [x] `Camera.id`/`group` → string, `source` added; DriveBC mapper updated; snapshot still parses. Also added `sourceKey` (DriveBC's numeric id / the City's image path), so `cameraImageUrl` never has to parse the prefixed `id` back apart.
+- [x] `VancouverCameraSource`, `CompositeCameraSource`, `catalogue.ts`. The Vancouver source is only composed in when `DATABASE_URL` is set, the same gate as the route repository.
+- [x] `cameraImageUrl` by source; card attribution; footer. Attribution goes through the existing `credit` field (`"City of Vancouver"`) rather than a switch in the card. The render timestamp for the `?t=` bucket is read once in `RouteCameras` (server) and passed down as `renderedAtMs`.
+- [x] Measure a city-origin route — results below
+
+*Measured 2026-09-24*, live DriveBC (1066) + `roadsight_dev` (844 Vancouver cameras), 1 km corridor, `MAX_CAMERAS = 40`. Match time is the warm median of 20 runs.
+
+| Route | Matched (DriveBC + Vancouver) | Shown (DriveBC + Vancouver) | Match time, before → after | First card km, before → after |
+|---|---|---|---|---|
+| Waterfront Stn → Squamish | 19 + 139 | 19 + 21 | 2.8 → 41.7 ms | 2.4 → **0.1** |
+| Metrotown → Squamish | 39 + 59 | 31 + 9 | 8.0 → 102.6 ms | 7.1 → 4.8 |
+| SFU → UBC | 4 + 235 | 4 + 36 | 0.4 → 45.0 ms | 11.3 → 11.3 |
+| Lougheed Mall → YVR | 26 + 22 | 26 + 14 | 2.3 → 23.4 ms | 2.1 → 2.1 |
+
+Findings:
+- **The gap is filled.** Waterfront → Squamish now opens at km 0.1 instead of at the Stanley Park causeway; SFU → UBC goes from 4 cameras at 2 sites to 40 across 34.
+- **§6's "no change to `camerasAlongRoute`, costs nothing" is wrong inside the city.** Every Vancouver candidate passes the bbox prefilter, so each one pays a full `nearestOnPolyline` scan over ~700–1700 segments: match time goes up 10–100×, to ~100 ms on Metrotown → Squamish. Tolerable per page view for a POC. If it matters, the fix is a coarser prefilter (bbox per chunk of ~50 segments) inside `nearestOnPolyline`, not a spatial index.
+- **§8.7 mostly holds: the highway is not starved.** Waterfront → Squamish keeps all 19 DriveBC cameras and the last card is still at km 62. Metrotown → Squamish is the one where the cap binds: 98 matches, and 8 DriveBC cameras give way to 9 intersections in the first 8 km. The mix is skewed, though: on Waterfront → Squamish, 21 of 40 cards are in the first 2.1 km, because empty highway buckets hand their slots back to the dense city ones.
+- **1 km is too wide for a street grid.** It reaches parallel streets five blocks away. At the grid's 200 m choice, SFU → UBC keeps 20 of 40 and Waterfront → Squamish 28. A per-source corridor (e.g. 250 m for Vancouver) is the obvious next lever, ahead of a per-source cap.
 
 **Phase 3 — later, if needed**
 - [ ] Scheduled Action running the sync weekly and opening a PR with the summary

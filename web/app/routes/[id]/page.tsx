@@ -87,6 +87,12 @@ export default async function RouteDetailPage({ params }: RouteParams) {
         link to the licence. The pictures themselves are served by drivebc.ca under the
         province's site copyright, hence the first line naming the Province.
         See docs/route-cameras-design.md §9.1.
+
+        The City of Vancouver's intersection cameras carry no licence of their own — the site
+        points at the City's general Terms of Use — so the third line credits the City and
+        links the site the pictures are hotlinked from (docs/add-trafficcams-vancouver.md
+        §8.1). Shown unconditionally, like the DriveBC lines: the footer names the page's
+        sources, not this route's.
       */}
       <footer className="mt-10 text-xs text-foreground/40">
         <p>
@@ -103,6 +109,13 @@ export default async function RouteDetailPage({ params }: RouteParams) {
             className="underline"
           >
             Open Government Licence – British Columbia
+          </a>
+          .
+        </p>
+        <p className="mt-1">
+          Intersection camera images © City of Vancouver, via{" "}
+          <a href="https://trafficcams.vancouver.ca/" className="underline">
+            trafficcams.vancouver.ca
           </a>
           .
         </p>

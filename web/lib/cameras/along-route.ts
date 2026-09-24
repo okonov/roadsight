@@ -139,7 +139,7 @@ function thin(matched: RouteCamera[], routeLength: number, limit: number): Route
  * the next junction along the road — one angle of four places beats four angles of one.
  */
 function dealByGroup(bucket: RouteCamera[]): RouteCamera[] {
-  const sites = new Map<number, RouteCamera[]>();
+  const sites = new Map<string, RouteCamera[]>();
   for (const camera of bucket) {
     const site = sites.get(camera.group);
     if (site) site.push(camera);

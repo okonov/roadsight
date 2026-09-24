@@ -12,7 +12,7 @@ interface RouteCamerasProps {
  * The cameras section, awaited separately from the rest of the page.
  *
  * Kept as its own async component so the page can wrap just this in `<Suspense>`: the route
- * header and its map paint immediately, and a slow or unreachable DriveBC costs the reader a
+ * header and its map paint immediately, and a slow or unreachable source costs the reader a
  * spinner in one panel rather than the whole page.
  *
  * Matching happens here rather than in the browser because the catalogue is a thousand cameras
@@ -29,5 +29,10 @@ export async function RouteCameras({ polyline }: RouteCamerasProps) {
   }
 
   const cameras = catalogue ? camerasAlongRoute(polyline, catalogue.cameras) : [];
-  return <CameraGrid cameras={cameras} catalogue={catalogue} />;
+  // Read once, here on the server, so the image URLs that depend on it are identical in the
+  // server HTML and the hydrated client. The purity rule is aimed at components that re-render;
+  // this is an async server component that renders once per request, so "impure" is the point.
+  // eslint-disable-next-line react-hooks/purity
+  const renderedAtMs = Date.now();
+  return <CameraGrid cameras={cameras} catalogue={catalogue} renderedAtMs={renderedAtMs} />;
 }
