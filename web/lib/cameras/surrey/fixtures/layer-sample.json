@@ -1,0 +1,307 @@
+{
+  "spatialReference": {
+    "wkid": 4326,
+    "latestWkid": 4326
+  },
+  "features": [
+    {
+      "attributes": {
+        "LOCATION": null,
+        "CAMERA_NAME": null,
+        "OWNER": null,
+        "IMAGE": null,
+        "NVR": null
+      },
+      "geometry": {
+        "x": -122.6823423665544,
+        "y": 49.17698592900678
+      }
+    },
+    {
+      "attributes": {
+        "LOCATION": "28 Ave & 160 St",
+        "CAMERA_NAME": "28_160_pano",
+        "OWNER": null,
+        "IMAGE": null,
+        "NVR": null
+      },
+      "geometry": {
+        "x": -122.77912009798378,
+        "y": 49.05290890053046
+      }
+    },
+    {
+      "attributes": {
+        "LOCATION": "Fraser Hwy And 176 St",
+        "CAMERA_NAME": null,
+        "OWNER": "Provincial",
+        "IMAGE": "https://www.drivebc.ca/images/93.jpg",
+        "NVR": null
+      },
+      "geometry": {
+        "x": -122.73430553513221,
+        "y": 49.137959666892314
+      }
+    },
+    {
+      "attributes": {
+        "LOCATION": "No 1 Hwy & 176 St",
+        "CAMERA_NAME": null,
+        "OWNER": null,
+        "IMAGE": "https://images.drivebc.ca/bchighwaycam/pub/cameras/904.jpg",
+        "NVR": null
+      },
+      "geometry": {
+        "x": -122.77809570953035,
+        "y": 49.19227914644844
+      }
+    },
+    {
+      "attributes": {
+        "LOCATION": "86 Ave & 152 St",
+        "CAMERA_NAME": "86_152_pano",
+        "OWNER": null,
+        "IMAGE": "https://stcameleonprod.blob.core.windows.net/prodcameleon-blob/TMCNVR02/enc_86_152_pano.jpg",
+        "NVR": "TMCNVR02"
+      },
+      "geometry": {
+        "x": -122.80163688345318,
+        "y": 49.159177572675084
+      }
+    },
+    {
+      "attributes": {
+        "LOCATION": "86 Ave & 152 St",
+        "CAMERA_NAME": "86_152_pano",
+        "OWNER": "Surrey",
+        "IMAGE": "https://stcameleonprod.blob.core.windows.net/prodcameleon-blob/TMCNVR02/enc_86_152_pano.jpg",
+        "NVR": "TMCNVR02"
+      },
+      "geometry": {
+        "x": -122.80164761232115,
+        "y": 49.15917231081926
+      }
+    },
+    {
+      "attributes": {
+        "LOCATION": "83A Ave & 140 St",
+        "CAMERA_NAME": "83A_140_cam1",
+        "OWNER": "Surrey",
+        "IMAGE": "https://stcameleonprod.blob.core.windows.net/prodcameleon-blob/TMCNVR02/enc_83A_140_cam1.jpg",
+        "NVR": "TMCNVR02"
+      },
+      "geometry": {
+        "x": -122.83443996879859,
+        "y": 49.15452843247758
+      }
+    },
+    {
+      "attributes": {
+        "LOCATION": "108 Ave & King George Blvd",
+        "CAMERA_NAME": "108_kgbv_quadN",
+        "OWNER": "Surrey",
+        "IMAGE": "https://stcameleonprod.blob.core.windows.net/prodcameleon-blob/TMCNVR02/enc_108_kgbv_quadN.jpg",
+        "NVR": "TMCNVR02"
+      },
+      "geometry": {
+        "x": -122.84606293621486,
+        "y": 49.19903173056941
+      }
+    },
+    {
+      "attributes": {
+        "LOCATION": "96 Ave & 195 St",
+        "CAMERA_NAME": "96_195_pano",
+        "OWNER": "Surrey",
+        "IMAGE": "https://cosmos.surrey.ca/TrafficCameraImages/enc_96_195_pano.jpg",
+        "NVR": "TMCNVR06"
+      },
+      "geometry": {
+        "x": -122.68239163997161,
+        "y": 49.177009759205326
+      }
+    },
+    {
+      "attributes": {
+        "LOCATION": "88 Ave & 150 St",
+        "CAMERA_NAME": "88_150_pano",
+        "OWNER": "Surrey",
+        "IMAGE": "https://stcameleonprod.blob.core.windows.net/prodcameleon-blob/TMCNVR04/enc_88_150_pano.jpg\n ",
+        "NVR": "TMCNVR04"
+      },
+      "geometry": {
+        "x": -122.80720872777266,
+        "y": 49.16304353685323
+      }
+    },
+    {
+      "attributes": {
+        "LOCATION": "88 Ave & 164 St",
+        "CAMERA_NAME": "88_164_pano",
+        "OWNER": "Surrey",
+        "IMAGE": "https://stcameleonprod.blob.core.windows.net/prodcameleon-blob/TMCNVR03/enc_88_164_cam1.pano",
+        "NVR": "TMCNVR03"
+      },
+      "geometry": {
+        "x": -122.76794027837232,
+        "y": 49.1629622059156
+      }
+    },
+    {
+      "attributes": {
+        "LOCATION": "80 Ave & 120A St",
+        "CAMERA_NAME": "80 _120A_pano",
+        "OWNER": "Surrey",
+        "IMAGE": "https://stcameleonprod.blob.core.windows.net/prodcameleon-blob/TMCNVR09/enc_80 _120A_pano.jpg",
+        "NVR": "TMCNVR09"
+      },
+      "geometry": {
+        "x": -122.88795271807157,
+        "y": 49.14872162110103
+      }
+    },
+    {
+      "attributes": {
+        "LOCATION": null,
+        "CAMERA_NAME": "26_168_pano",
+        "OWNER": "Surrey",
+        "IMAGE": "https://stcameleonprod.blob.core.windows.net/prodcameleon-blob/TMCNVR01/enc_26_168_pano.jpg",
+        "NVR": "TMCNVR01"
+      },
+      "geometry": {
+        "x": -122.7567816310409,
+        "y": 49.04943768930674
+      }
+    },
+    {
+      "attributes": {
+        "LOCATION": "64 Ave & 152 St",
+        "CAMERA_NAME": "64_152_quad",
+        "OWNER": "Surrey",
+        "IMAGE": "https://stcameleonprod.blob.core.windows.net/prodcameleon-blob/TMCNVR02/enc_64_152_quad.jpg",
+        "NVR": "TMCNVR02"
+      },
+      "geometry": {
+        "x": -122.8012199306501,
+        "y": 49.11909624682256
+      }
+    },
+    {
+      "attributes": {
+        "LOCATION": "McBride Ave Railway Crossing",
+        "CAMERA_NAME": "mcbride_railcrossing_cam1S",
+        "OWNER": "Surrey",
+        "IMAGE": "https://stcameleonprod.blob.core.windows.net/prodcameleon-blob/TMCNVR11/enc_mcbride_railcrossing_cam1S.jpg",
+        "NVR": "TMCNVR11"
+      },
+      "geometry": {
+        "x": -122.88265671669164,
+        "y": 49.049699210218556
+      }
+    },
+    {
+      "attributes": {
+        "LOCATION": "75 Ave & 76 Ave",
+        "CAMERA_NAME": "75_76_cam1v",
+        "OWNER": "Surrey",
+        "IMAGE": "https://stcameleonprod.blob.core.windows.net/prodcameleon-blob/TMCNVR09/enc_75_76_cam1v.jpg",
+        "NVR": "TMCNVR09"
+      },
+      "geometry": {
+        "x": -122.87346879917847,
+        "y": 49.1409940168238
+      }
+    },
+    {
+      "attributes": {
+        "LOCATION": "96 Ave And 195 St",
+        "CAMERA_NAME": "96_195_cam1",
+        "OWNER": "Surrey",
+        "IMAGE": "https://stcameleonprod.blob.core.windows.net/prodcameleon-blob/TMCNVR06/enc_96_195_cam1.jpg",
+        "NVR": "TMCNVR06"
+      },
+      "geometry": {
+        "x": -122.68232968811245,
+        "y": 49.176981943370556
+      }
+    },
+    {
+      "attributes": {
+        "LOCATION": "King George Blvd & 74 Ave",
+        "CAMERA_NAME": "74_kgbv_pano",
+        "OWNER": "Surrey",
+        "IMAGE": "https://stcameleonprod.blob.core.windows.net/prodcameleon-blob/TMCNVR07/enc_74_kgbv_pano.jpg",
+        "NVR": "TMCNVR07"
+      },
+      "geometry": {
+        "x": -122.84549980900897,
+        "y": 49.137268596953994
+      }
+    },
+    {
+      "attributes": {
+        "LOCATION": "74 Ave And King George Blvd",
+        "CAMERA_NAME": "74_kgbv_cam1",
+        "OWNER": "Surrey",
+        "IMAGE": "https://stcameleonprod.blob.core.windows.net/prodcameleon-blob/TMCNVR07/enc_74_kgbv_cam1.jpg",
+        "NVR": "TMCNVR07"
+      },
+      "geometry": {
+        "x": -122.84562048416271,
+        "y": 49.13719267431779
+      }
+    },
+    {
+      "attributes": {
+        "LOCATION": "7100 Block 120 St",
+        "CAMERA_NAME": "7100_120_cam1",
+        "OWNER": "Surrey",
+        "IMAGE": "https://stcameleonprod.blob.core.windows.net/prodcameleon-blob/TMCNVR09/enc_7100_120_cam1.jpg",
+        "NVR": "TMCNVR09"
+      },
+      "geometry": {
+        "x": -122.89021893317427,
+        "y": 49.13256238793979
+      }
+    },
+    {
+      "attributes": {
+        "LOCATION": "7100 Blk 120 St",
+        "CAMERA_NAME": "7100_120_pano",
+        "OWNER": "Surrey",
+        "IMAGE": "https://stcameleonprod.blob.core.windows.net/prodcameleon-blob/TMCNVR09/enc_7100_120_pano.jpg",
+        "NVR": "TMCNVR09"
+      },
+      "geometry": {
+        "x": -122.8901760174504,
+        "y": 49.1327027879891
+      }
+    },
+    {
+      "attributes": {
+        "LOCATION": "Colebrook Rd And 123 St",
+        "CAMERA_NAME": "colebrook_125a_cam2",
+        "OWNER": "Surrey",
+        "IMAGE": "https://stcameleonprod.blob.core.windows.net/prodcameleon-blob/TMCNVR01/enc_colebrook_125a_cam2.jpg",
+        "NVR": "TMCNVR01"
+      },
+      "geometry": {
+        "x": -122.88627925063781,
+        "y": 49.09368821184562
+      }
+    },
+    {
+      "attributes": {
+        "LOCATION": "Colebrook Rd And 125A St",
+        "CAMERA_NAME": "colebrook_125a_cam1",
+        "OWNER": "Surrey",
+        "IMAGE": "https://stcameleonprod.blob.core.windows.net/prodcameleon-blob/TMCNVR01/enc_colebrook_125a_cam1.jpg",
+        "NVR": "TMCNVR01"
+      },
+      "geometry": {
+        "x": -122.8750528847084,
+        "y": 49.09433902399087
+      }
+    }
+  ]
+}

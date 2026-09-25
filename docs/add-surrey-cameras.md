@@ -175,7 +175,7 @@ The same shape as `sync-vancouver-cameras.mjs`. Pure parsing lives in `web/lib/c
 2. `camera_key` = lower-cased `CAMERA_NAME`, or the filename stem when the name is null. Dedupe on it, preferring `OWNER='Surrey'`.
 3. Derive `kind`, `heading` and `site_key` (§2).
 
-**Step 3 — probe** (~640 `HEAD` requests, concurrency 8, ~15 s *measured*): store `image_status`, `image_modified_at` and `probed_at`. A timeout is stored as a NULL status and does not retire anything.
+**Step 3 — probe** (~640 `HEAD` requests, concurrency 8, ~15 s *measured*): store `image_status`, `image_modified_at` and `probed_at`. A timeout or network error leaves the previous probe result in place and does not retire anything: a failed request says nothing about the camera. If fewer than 400 images answer 200, the run stops before writing anything (§9 q.4).
 
 **Step 4 — upsert** on `camera_key`: update everything except `lat`/`lng`/`site_key` when the row is `manual`. Set `retired_at` on rows missing from this run, and clear it on rows that came back. Print a summary: seen/new/retired, how many are live (200) and dead (404), how many frames are older than 30 min, and which `site_key`s changed.
 
@@ -200,13 +200,13 @@ Vancouver's Phase 2 already added a string `id`/`group`, a `source` field, `sour
 ## 8. Phasing
 
 **Phase 0 — record the traps** *(no app code)*
-- [ ] `test/httpYac/surrey-cameras.http`: both layer queries (count and a sample page), one live image plus its 304, a blob 404 (`enc_83A_140_cam1.jpg`), a `cosmos` 404, and the container-listing request with a comment explaining why it must not be used.
+- [x] `test/httpYac/surrey-cameras.http`: both layer queries (count and a sample page), one live image plus its 304, a blob 404 (`enc_83A_140_cam1.jpg`), a `cosmos` 404, and the container-listing request with a comment explaining why it must not be used.
 
 **Phase 1 — data** *(no UI change)*
-- [ ] `db/init/003_surrey_cameras.sql`
-- [ ] `lib/cameras/surrey/parse-layer.mjs` + fixture
-- [ ] `scripts/sync-surrey-cameras.mjs`: fetch, normalise, probe, upsert, summary
-- [ ] Apply to `roadsight_dev`. Expected result: ~643 rows, ~595 live, 510 sites.
+- [x] `db/init/003_surrey_cameras.sql`
+- [x] `lib/cameras/surrey/parse-layer.mjs` + fixture (`fixtures/layer-sample.json`: 23 live records covering every case in §2)
+- [x] `scripts/sync-surrey-cameras.mjs`: fetch, normalise, probe, upsert, summary. Dry run on 2026-09-24 (no DB): 701 features → 643 cameras, 598 live, 508 sites, ~20 s.
+- [x] Apply to `roadsight_dev`. Expected result: ~643 rows, ~595 live, 510 sites. Actual (2026-09-24): 643 rows, 598 live, 45 not 200, 508 sites, 8 frames older than 30 min.
 
 **Phase 2 — the page**
 - [ ] `"surrey"` source name, `SurreyCameraSource`, composite, `cameraImageUrl`, footer

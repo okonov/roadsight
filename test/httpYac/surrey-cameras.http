@@ -1,0 +1,155 @@
+# City of Surrey intersection cameras — third camera source alongside DriveBC
+# (drivebc-cameras.http) and Vancouver (trafficcams-vancouver.http). See
+# docs/add-surrey-cameras.md for the full plan; this file exists to record the traps found
+# while measuring the endpoints, before any app code exists (Phase 0).
+#
+# No key: both layers and the image host are public.
+
+@operational = https://gisservices.surrey.ca/arcgis/rest/services/Public/Transportation/MapServer/2
+@openData = https://services5.arcgis.com/YRpe0VKTJytZSSIB/arcgis/rest/services/Traffic%20Cameras/FeatureServer/0
+@blob = https://stcameleonprod.blob.core.windows.net/prodcameleon-blob
+
+# --- The layers ------------------------------------------------------------------------------
+
+# The operational layer: the City's own ArcGIS Server, behind its "Surrey Traffic Cameras"
+# web map. Not a published API, but the fresher of the two and the only one with `OWNER`,
+# `CAMERA_NAME` and `NVR`, which the sync's filters need. 701 records on 2026-09-24. The
+# count is the sync's tripwire: fewer than 500 means something is wrong (plan §6 step 1).
+### Operational layer — count
+GET {{operational}}/query
+  ?where=1%3D1
+  &returnCountOnly=true
+  &f=json
+
+?? status == 200
+?? js response.parsedBody.count >= 500
+
+# A sample page, with the exact field list and `outSR=4326` the sync uses — geometry is
+# reprojected on request from NAD83 UTM 10N (wkid 26910), so the app never sees UTM. The full
+# layer fits in one request (`maxRecordCount` 2000), so the sync drops `resultRecordCount`.
+#
+# What to look for in the records (plan §2): empty records with no IMAGE; provincial cameras
+# whose IMAGE is on drivebc.ca (filter on the image *host*, not OWNER — three have OWNER
+# null); duplicate records one of which has OWNER null; IMAGE values with trailing whitespace
+# or a newline; mixed-case names (`83A_140_cam1`) — the blob is case-sensitive, so never
+# lower-case the URL.
+### Operational layer — sample page
+GET {{operational}}/query
+  ?where=1%3D1
+  &outFields=LOCATION,CAMERA_NAME,OWNER,IMAGE,NVR
+  &outSR=4326
+  &resultRecordCount=5
+  &f=json
+
+?? status == 200
+?? header content-type includes application/json
+
+# THE TRAP for the sync's error handling. A bad query answers **200** with an `error` object
+# in the body, not a 4xx. Checking `response.ok` is not enough; the sync must look for
+# `error` (and `exceededTransferLimit`) in the JSON.
+### Operational layer — a failed query still returns 200
+GET {{operational}}/query
+  ?where=1%3D1
+  &outFields=NO_SUCH_FIELD
+  &f=json
+
+?? status == 200
+?? js response.parsedBody.error.code == 400
+
+# The open-data copy on ArcGIS Online: the licence anchor (Open Government Licence – Surrey,
+# via the data.surrey.ca catalogue) and the sync's fallback. A periodic export
+# (`dataLastEditDate` 2026-08-06), so its count drifts from the operational layer — 703 vs
+# 701 on 2026-09-24. Different fields: CAMERAID, LOCATION, ROTATION, IMAGE. ROTATION is 0 on
+# every Surrey record and tells us nothing about direction.
+### Open-data copy — count
+GET {{openData}}/query
+  ?where=1%3D1
+  &returnCountOnly=true
+  &f=json
+
+?? status == 200
+?? js response.parsedBody.count >= 500
+
+# Unlike the operational layer, the copy is CORS-open (`access-control-allow-origin: *`).
+# The app doesn't need that — the sync fetches server-side — but it is the one difference
+# worth knowing if anyone proposes reading the layer from the browser.
+### Open-data copy — sample page
+GET {{openData}}/query
+  ?where=1%3D1
+  &outFields=*
+  &outSR=4326
+  &resultRecordCount=5
+  &f=json
+Origin: http://localhost:3000
+
+?? status == 200
+?? header access-control-allow-origin == *
+
+# --- Images ----------------------------------------------------------------------------------
+
+# A live frame on Azure Blob Storage: 800×450, refreshed every 1–5 min depending on the
+# recorder (the TMCNVRnn folder; TMCNVR11 is the 5-minute one). `Last-Modified` and `ETag`,
+# but **no `Cache-Control`** — the same position as Vancouver, so the app's `?t=` cache key
+# has to come from the clock. `Last-Modified` is real, though, which is what the sync's probe
+# stores as `image_modified_at`. The etag is captured rather than hardcoded because it
+# changes with every refresh.
+### Live frame
+GET {{blob}}/TMCNVR11/enc_100_whalley_cam1.jpg
+
+?? status == 200
+?? header content-type == image/jpeg
+
+{{
+  exports.whalleyEtag = response.headers.etag;
+}}
+
+# Conditional GET with the etag captured above: a real 304. Run it within a few minutes of
+# the request above, or the frame will have been rewritten and this returns 200.
+### Live frame, conditional
+GET {{blob}}/TMCNVR11/enc_100_whalley_cam1.jpg
+If-None-Match: {{whalleyEtag}}
+
+?? status == 304
+
+# THE TRAP: a dead camera the layer still lists. `83A_140_cam1` is in the operational layer
+# with this exact URL, and the blob answers 404 ("The specified blob does not exist.", an XML
+# body). 26 blob URLs in the layer behave like this. It's why the plan syncs into Postgres
+# with an image probe instead of reading the layer at request time: without the probe about
+# 1 card in 13 would say "Image unavailable" (plan §2). The error body starts with a UTF-8
+# BOM, so httpYac prints an "xml format error" for it; the assertion still passes.
+### Dead blob — listed in the layer, 404 on the host
+GET {{blob}}/TMCNVR02/enc_83A_140_cam1.jpg
+
+?? status == 404
+
+# The other kind of dead camera: 23 records still point at `cosmos.surrey.ca`, an older
+# on-prem IIS host, and it 404s for every one of them. For 20 of the 23 a copy exists under
+# one of the blob's TMCNVR01…11 folders, but those copies were 8–70 min old, so v1 does not
+# relocate them (plan §4, §9 q.3). The probe treats this 404 like any other.
+### Dead cosmos host
+GET https://cosmos.surrey.ca/TrafficCameraImages/enc_96_195_pano.jpg
+
+?? status == 404
+
+# --- DO NOT USE ------------------------------------------------------------------------------
+
+# The container is publicly listable. This returns 200 with the blob list as XML, 5,000 per
+# page — and besides each camera's live `enc_<name>.jpg` it includes a 15-minute archive
+# going back about a month (`enc_14_kgbv_cam1_20260823_1800.jpg` …), roughly two million
+# blobs across ~600 cameras.
+#
+# This is almost certainly a storage-account setting (`publicAccess: container` rather than
+# `blob`), not an interface the City publishes, and it could be switched off at any time
+# without affecting the live frames. **The app must not depend on it**: no enumeration, no
+# driving the sync from it, no archive reads. Reading the archive for the analysis service
+# needs the City's permission first (plan §3, §9 q.2). `maxresults=1` keeps this request to a
+# single entry; it is here only so the finding is reproducible.
+#
+# Also note: a HEAD on this URL answers 405, only GET works. The body starts with a UTF-8
+# BOM, so httpYac prints an "xml format error" while pretty-printing it; the request itself
+# still succeeds.
+### Container listing — recorded, not used
+GET {{blob}}?restype=container&comp=list&maxresults=1
+
+?? status == 200
+?? header content-type == application/xml
