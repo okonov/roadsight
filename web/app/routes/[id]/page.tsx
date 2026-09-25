@@ -93,6 +93,11 @@ export default async function RouteDetailPage({ params }: RouteParams) {
         links the site the pictures are hotlinked from (docs/add-trafficcams-vancouver.md
         §8.1). Shown unconditionally, like the DriveBC lines: the footer names the page's
         sources, not this route's.
+
+        The City of Surrey's camera list is in its open-data catalogue, under the Open
+        Government License – City of Surrey. The last line is that licence's own attribution
+        statement, verbatim (its spelling, not ours), linked to the catalogue's licence page
+        (docs/add-surrey-cameras.md §7, §9.1).
       */}
       <footer className="mt-10 text-xs text-foreground/40">
         <p>
@@ -116,6 +121,16 @@ export default async function RouteDetailPage({ params }: RouteParams) {
           Intersection camera images © City of Vancouver, via{" "}
           <a href="https://trafficcams.vancouver.ca/" className="underline">
             trafficcams.vancouver.ca
+          </a>
+          .
+        </p>
+        <p className="mt-1">
+          Intersection camera images © City of Surrey. Contains information licensed under the{" "}
+          <a
+            href="https://opendata-surrey.hub.arcgis.com/pages/55089a19491a4fe59a41e059fd8af708"
+            className="underline"
+          >
+            Open Government License – City of Surrey
           </a>
           .
         </p>

@@ -1,7 +1,7 @@
 import { GeoPoint } from "@/lib/routes/types";
 
 /** Where a camera's metadata and picture come from. */
-export type CameraSourceName = "drivebc" | "vancouver";
+export type CameraSourceName = "drivebc" | "vancouver" | "surrey";
 
 /**
  * One traffic camera, in this app's shape rather than any upstream's.
@@ -13,14 +13,15 @@ export type CameraSourceName = "drivebc" | "vancouver";
  */
 export interface Camera {
   /**
-   * Source-prefixed and unique across sources — "drivebc:123", "vancouver:45". Both upstreams
-   * number from 1, and this is a React key.
+   * Source-prefixed and unique across sources — "drivebc:123", "vancouver:45", "surrey:7". The
+   * upstreams all number from 1, and this is a React key.
    */
   id: string;
   source: CameraSourceName;
   /**
    * The upstream's own handle for the picture: DriveBC's numeric id as a string, or the City's
-   * image path ("cameraimages/Boundary1stSNorth.jpg"). Only `image-url.ts` reads it.
+   * image path ("cameraimages/Boundary1stSNorth.jpg"), or Surrey's full image URL. Only
+   * `image-url.ts` reads it.
    */
   sourceKey: string;
   /** "Coquihalla Great Bear Snowshed - N" */
@@ -33,7 +34,8 @@ export interface Camera {
   regionName: string;
   /**
    * Which way the camera looks. Compass letters for DriveBC ("NW"); the City's label as
-   * published for Vancouver ("North", "South Main", "West exit"). Displayed for context; never
+   * published for Vancouver ("North", "South Main", "West exit"); for Surrey, a compass letter,
+   * "360°" or "4 views" from the camera name's suffix, or empty. Displayed for context; never
    * used to filter.
    */
   orientation: string;
@@ -42,13 +44,15 @@ export interface Camera {
    * "Capilano - N/E/S/W" are four ids sharing one group — and 895 of 1062 cameras are in a
    * group with at least one sibling. Matching by proximity alone therefore returns the same
    * junction several times over, so selection spreads across groups before it takes a second
-   * angle of any one of them. For Vancouver, the intersection. Source-prefixed like `id`.
+   * angle of any one of them. For Vancouver, the intersection; for Surrey, the normalised
+   * location (`site_key`). Source-prefixed like `id`.
    */
   group: string;
   location: GeoPoint;
   /**
    * False means the camera is dark. Always true for Vancouver, which publishes no liveness at
-   * all (docs/add-trafficcams-vancouver.md §5). DriveBC still answers its image URL with **200 and a
+   * all (docs/add-trafficcams-vancouver.md §5), and for Surrey, whose dead images the sync's
+   * probe has already filtered out (docs/add-surrey-cameras.md §6). DriveBC still answers its image URL with **200 and a
    * JPEG** — a black frame with a red bar — so this flag is the only way to know. Never infer
    * liveness from the image response.
    */
@@ -61,10 +65,10 @@ export interface Camera {
   updatePeriodSeconds: number | null;
   /**
    * Attribution. Usually empty for DriveBC, in which case `dbcMark` is what gets displayed;
-   * "City of Vancouver" for the City's cameras.
+   * "City of Vancouver" or "City of Surrey" for the cities' cameras.
    */
   credit: string;
-  /** "DriveBC.ca"; empty for Vancouver. */
+  /** "DriveBC.ca"; empty for the cities' cameras. */
   dbcMark: string;
 }
 

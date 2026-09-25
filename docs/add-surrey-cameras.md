@@ -209,8 +209,23 @@ Vancouver's Phase 2 already added a string `id`/`group`, a `source` field, `sour
 - [x] Apply to `roadsight_dev`. Expected result: ~643 rows, ~595 live, 510 sites. Actual (2026-09-24): 643 rows, 598 live, 45 not 200, 508 sites, 8 frames older than 30 min.
 
 **Phase 2 — the page**
-- [ ] `"surrey"` source name, `SurreyCameraSource`, composite, `cameraImageUrl`, footer
-- [ ] Measure, as in Vancouver's Phase 2: a Surrey-origin route (Surrey Central → Waterfront, Guildford → Langley, White Rock → YVR). Record matches per source, match time, the km of the first card, and how many `pano` cards appear.
+- [x] `"surrey"` source name, `SurreyCameraSource`, composite, `cameraImageUrl`, footer. `vancouverImageUrl` became `clockBucketedUrl`, shared by both cities. The footer uses the licence's own attribution statement verbatim: *"Contains information licensed under the Open Government License – City of Surrey."* (its spelling, not "Licence – Surrey"). It links to the catalogue's licence page, `opendata-surrey.hub.arcgis.com/pages/55089a19491a4fe59a41e059fd8af708`.
+- [x] Measure, as in Vancouver's Phase 2: a Surrey-origin route (Surrey Central → Waterfront, Guildford → Langley, White Rock → YVR). Record matches per source, match time, the km of the first card, and how many `pano` cards appear. Results below.
+
+*Measured 2026-09-24*: live DriveBC (1066), plus `roadsight_dev` with 844 Vancouver cameras and 598 Surrey cameras (502 view, 81 pano, 7 quad, 8 with a heading). Routes come from Azure Maps, and the corridor is the default 200 m with `MAX_CAMERAS = 40`, thinned as the grid thins them. Match time is the warm median of 20 runs at the server's 500 m.
+
+| Route | Matched at 200 m (DriveBC + Van + Surrey) | Shown (same) | Match time, before → after | First card km, before → after | `pano` cards shown |
+|---|---|---|---|---|---|
+| Surrey Central → Waterfront (34.8 km) | 9 + 54 + 23 | 9 + 17 + 14 | 30.1 → 57.4 ms | 6.0 → **0.1** | 1 |
+| Guildford → Langley (17.7 km) | 12 + 0 + 11 | 12 + 0 + 11 | 2.6 → 10.2 ms | 5.6 → **0.2** | 1 |
+| White Rock → YVR (42.7 km) | 26 + 0 + 7 | 26 + 0 + 7 | 14.0 → 47.4 ms | 5.2 → 1.3 | 0 |
+| Surrey Central → Newton, King George Blvd (7.2 km) | 0 + 0 + 48 | 0 + 0 + 40 | 0.1 → 2.4 ms | none → **0.0** | 9 |
+
+Findings:
+- **The gap is filled.** All three Surrey-origin routes now open within 1.3 km instead of 5–6 km, and King George Blvd, which had no cameras at all, now has 40.
+- **§9 q.5 holds: the highway is not starved.** DriveBC keeps every camera it had on all three mixed routes. On Surrey Central → Waterfront the Surrey cameras take their slots from Vancouver's (31 → 17), not from DriveBC's.
+- **Match time roughly doubles or triples**, to ~57 ms at most. That is the same cost that Vancouver's Phase 2 found, and the same chunked-bbox fix applies if it ever matters.
+- **Fisheyes rarely lead a site.** 9 of 40 cards on King George Blvd are `pano`, but 8 of them are at sites that have no other camera. In one case a pano is shown ahead of a conventional view at the same site: `96 Ave & King George Blvd`, where the pano is 4 m from the road and the views 35 m and 135 m. §7 assumed the `SELECT` order (`kind = 'view'` first) would decide this. It doesn't: `thin` re-sorts each stretch by distance from the road before `dealByGroup`, so the `SELECT` order only settles exact ties. The order is kept as a tiebreak. Changing `thin` to prefer non-pano cameras isn't worth it for one card in 40.
 
 **Phase 3 — later, if needed**
 - [ ] Scheduled daily sync (shared with Vancouver's)

@@ -3,6 +3,7 @@ import { CameraSource } from "./camera-source";
 import { CompositeCameraSource } from "./composite-camera-source";
 import { DriveBcCameraSource } from "./drivebc-camera-source";
 import { SnapshotCameraSource } from "./snapshot-camera-source";
+import { SurreyCameraSource } from "./surrey-camera-source";
 import { VancouverCameraSource } from "./vancouver-camera-source";
 
 // Dev-mode module reloads can otherwise reset this singleton mid-session; stash it on
@@ -19,8 +20,8 @@ const globalForCameras = globalThis as unknown as {
 // only for pinning the committed list deliberately, e.g. to demo with no network at all — and
 // pins DriveBC alone, since the City's cameras need a database.
 //
-// The City's cameras live in Postgres (synced by scripts/sync-vancouver-cameras.mjs), so they
-// are gated on DATABASE_URL exactly as the route repository is: without one, `npm run dev`
+// The cities' cameras live in Postgres (synced by scripts/sync-vancouver-cameras.mjs and
+// scripts/sync-surrey-cameras.mjs), so they are gated on DATABASE_URL exactly as the route repository is: without one, `npm run dev`
 // shows DriveBC only rather than logging a failed query per hour.
 function createCameraSource(): CameraSource {
   const snapshot = new SnapshotCameraSource();
@@ -29,7 +30,12 @@ function createCameraSource(): CameraSource {
   const driveBc = new DriveBcCameraSource(snapshot);
   if (!process.env.DATABASE_URL) return driveBc;
 
-  return new CompositeCameraSource([driveBc, new VancouverCameraSource(getPool())]);
+  const pool = getPool();
+  return new CompositeCameraSource([
+    driveBc,
+    new VancouverCameraSource(pool),
+    new SurreyCameraSource(pool),
+  ]);
 }
 
 export const cameraCatalogue: CameraSource =

@@ -7,8 +7,8 @@ import { RouteCamera } from "@/lib/cameras/types";
 import { useNow } from "./use-now";
 
 /**
- * DriveBC frames are around 800x450; the City of Vancouver's are 720x480 (3:2). Requesting a
- * fixed 16:9 box and cropping to it keeps the grid from reflowing between the two.
+ * DriveBC and City of Surrey frames are 800x450; the City of Vancouver's are 720x480 (3:2).
+ * Requesting a fixed 16:9 box and cropping to it keeps the grid from reflowing between them.
  */
 const IMAGE_WIDTH = 480;
 const IMAGE_HEIGHT = 270;
