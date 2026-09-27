@@ -10,6 +10,7 @@
 
 import { Pool } from "pg";
 import { parseLayer } from "../lib/cameras/surrey/parse-layer.mjs";
+import { mapLimit, requireEnv } from "./lib/sync-utils.mjs";
 
 const OPERATIONAL_LAYER = "https://gisservices.surrey.ca/arcgis/rest/services/Public/Transportation/MapServer/2";
 const OPEN_DATA_LAYER =
@@ -174,23 +175,6 @@ async function sync(pool) {
     console.log(`site_key changes (${siteKeyChanges.length}):`);
     for (const change of siteKeyChanges) console.log(`  ${change}`);
   }
-}
-
-async function mapLimit(items, limit, fn) {
-  let cursor = 0;
-  async function worker() {
-    while (cursor < items.length) {
-      const index = cursor++;
-      await fn(items[index], index);
-    }
-  }
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
-}
-
-function requireEnv(name) {
-  const value = process.env[name];
-  if (!value) throw new Error(`${name} is required — see .env.local.example`);
-  return value;
 }
 
 async function main() {
