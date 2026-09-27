@@ -19,6 +19,7 @@ import { z } from "zod";
 import { parseKml } from "../lib/cameras/vancouver/parse-kml.mjs";
 import { parseRootPage } from "../lib/cameras/vancouver/parse-root-page.mjs";
 import { parseIntersectionPage } from "../lib/cameras/vancouver/parse-intersection-page.mjs";
+import { mapLimit, requireEnv } from "./lib/sync-utils.mjs";
 
 const KML_URL = "https://vanmapp1.vancouver.ca/googleKml/traffic_cameras/";
 const ROOT_URL = "https://trafficcams.vancouver.ca/";
@@ -309,23 +310,6 @@ async function geocode(pool) {
   console.log("");
   console.log("=== Geocode summary ===");
   console.log(`Matched: ${matched}, unmatched: ${unmatched} (left NULL — fix manually, see §4 step 2.3)`);
-}
-
-async function mapLimit(items, limit, fn) {
-  let cursor = 0;
-  async function worker() {
-    while (cursor < items.length) {
-      const index = cursor++;
-      await fn(items[index], index);
-    }
-  }
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
-}
-
-function requireEnv(name) {
-  const value = process.env[name];
-  if (!value) throw new Error(`${name} is required — see .env.local.example`);
-  return value;
 }
 
 async function main() {

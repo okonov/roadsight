@@ -27,7 +27,7 @@ const UPDATE_PERIOD_SECONDS = 300;
 // a tiebreak, though: `thin` re-ranks each stretch by distance from the road before dealing by
 // site, and this order survives only among cameras at the same point.
 const CAMERAS_SQL = `
-  SELECT id, site_key, image_url, location, kind, heading, lat, lng
+  SELECT id, site_key, image_url, location, camera_name, kind, heading, lat, lng
   FROM surrey_cameras
   WHERE retired_at IS NULL
     AND image_status = 200
@@ -39,6 +39,7 @@ interface CameraRow {
   site_key: string;
   image_url: string;
   location: string;
+  camera_name: string;
   kind: "view" | "pano" | "quad";
   heading: "N" | "E" | "S" | "W" | null;
   lat: number;
@@ -59,7 +60,8 @@ function toCamera(row: CameraRow): Camera {
     source: "surrey",
     sourceKey: row.image_url,
     // Shown as the City publishes it, "And" and "&" alike (docs/add-surrey-cameras.md §9.7).
-    name: row.location,
+    // Falls back to the camera name for the one record with no LOCATION (`26_168_pano`).
+    name: row.location || row.camera_name,
     caption: "",
     highway: "",
     highwayDescription: "",
